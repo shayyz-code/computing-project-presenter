@@ -94,8 +94,23 @@ public final class SimulatorSource: MirrorSource {
         // Capture at the window's own pixel size. Scaling belongs to the pane,
         // which knows how much room it has; scaling here would throw away detail
         // the pane might want.
+        // Crop off the Simulator's macOS window chrome — its title bar and
+        // toolbar buttons. They are noise on a projector and look wrong beside a
+        // physical device's drawn chassis. This removes the *window* furniture,
+        // not the device bezel, which is drawn inside the window and is exactly
+        // what makes the Simulator read as a phone.
+        //
+        // Derived from the window rather than hardcoded: toolbar height varies
+        // with Simulator version, and a fixed inset would silently crop into the
+        // device on a version that differs.
+        let chromeHeight = Self.windowChromeHeight(for: window)
+        if chromeHeight > 0 {
+            configuration.sourceRect = CGRect(
+                x: 0, y: chromeHeight,
+                width: window.frame.width, height: window.frame.height - chromeHeight)
+        }
         configuration.width = Int(window.frame.width * 2)
-        configuration.height = Int(window.frame.height * 2)
+        configuration.height = Int((window.frame.height - chromeHeight) * 2)
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         configuration.queueDepth = 5
         // A macOS cursor floating over a mirrored phone reads as a rendering
@@ -143,6 +158,20 @@ public final class SimulatorSource: MirrorSource {
     /// Long enough for a slow first frame, short enough that a black pane is
     /// never what the user is left looking at.
     static let firstFrameTimeout: Duration = .seconds(3)
+
+    /// Height of the Simulator's macOS title bar and toolbar, in window points.
+    ///
+    /// Estimated from the window rather than measured, because `SCWindow`
+    /// exposes no content rect. A device window is far taller than it is wide,
+    /// so a small fraction of the height is a safe approximation — and it is
+    /// clamped so an unusual window (a landscape iPad, say) can never have its
+    /// content cropped into.
+    static func windowChromeHeight(for window: SCWindow) -> CGFloat {
+        let height = window.frame.height
+        guard height > 0 else { return 0 }
+        // ~52pt on the measured iPhone 17 window (435x929).
+        return min(height * 0.06, 60)
+    }
 
     /// Makes the Simulator visible, because a hidden app is not drawn and so
     /// produces no frames.
