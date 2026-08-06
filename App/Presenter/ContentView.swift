@@ -16,19 +16,28 @@ struct ContentView: View {
     /// plain PDF, which carries neither.
     @State private var deck: Deck?
     @State private var status: LoadStatus = .idle
+    @State private var timer = PresentationTimer()
+    @AppStorage("showsNotes") private var showsNotes = true
 
     var body: some View {
         HSplitView {
             if case .converting(let name) = status {
                 ConvertingPane(filename: name)
             } else if let renderer {
-                SlidePane(
-                    renderer: renderer,
-                    slideNumber: navigator.position,
-                    state: slideView,
-                    onNext: { _ = navigator.advance() },
-                    onPrevious: { _ = navigator.retreat() }
-                )
+                VStack(spacing: 0) {
+                    SlidePane(
+                        renderer: renderer,
+                        slideNumber: navigator.position,
+                        state: slideView,
+                        onNext: { _ = navigator.advance() },
+                        onPrevious: { _ = navigator.retreat() }
+                    )
+                    // The deck keeps the space; notes take a modest strip below.
+                    if showsNotes, deck != nil {
+                        NotesPane(deck: deck, slideNumber: navigator.position, timer: timer)
+                            .frame(height: 150)
+                    }
+                }
                 .frame(minWidth: 320)
             } else {
                 PlaceholderPane(
@@ -47,6 +56,9 @@ struct ContentView: View {
         .frame(minWidth: 900, minHeight: 560)
         .onReceive(NotificationCenter.default.publisher(for: .openDeckRequested)) { _ in
             openDeck()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleNotesRequested)) { _ in
+            showsNotes.toggle()
         }
     }
 
@@ -95,6 +107,9 @@ struct ContentView: View {
             navigator = SlideNavigator(count: deck?.count ?? loaded.pageCount)
             self.deck = deck
             slideView.reset()
+            // Opening a deck is the start of the talk. start() is idempotent,
+            // so reopening does not restart a run already in progress.
+            timer.start()
         } catch {
             report(error, for: source)
         }
@@ -142,6 +157,7 @@ extension UTType {
 
 extension Notification.Name {
     static let openDeckRequested = Notification.Name("openDeckRequested")
+    static let toggleNotesRequested = Notification.Name("toggleNotesRequested")
 }
 
 /// An empty pane: what it is, why it is empty, and an optional way out of that.

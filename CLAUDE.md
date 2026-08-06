@@ -63,6 +63,8 @@ docs/{adr,specs}/
 
 **When Apple Events times out, look at what the app is showing.** Keynote reports nothing to the script while a modal is up. Read the dialog out of the accessibility tree — `System Events` → `every window whose subrole is "AXDialog"` → its `static text` — before concluding the operation is unsupported.
 
+**A flipped `NSView` draws `CGImage`s upside down.** `isFlipped = true` gives top-left origin so layout arithmetic reads naturally, but `CGContext.draw(_:in:)` places images in bottom-left space — so every slide renders inverted. `SlidePane` flips about the drawn rect before drawing. This shipped undetected in #45 because rendering was only ever verified by sampling pixels in tests; **look at the app** before believing a rendering path works.
+
 **`#expect` cannot contain a mutating call.** The macro expands its argument into a closure over an immutable binding, so `#expect(nav.advance())` fails to compile with "cannot use mutating member on immutable value". Bind the result first:
 
 ```swift
