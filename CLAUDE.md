@@ -63,6 +63,10 @@ docs/{adr,specs}/
 
 **When Apple Events times out, look at what the app is showing.** Keynote reports nothing to the script while a modal is up. Read the dialog out of the accessibility tree — `System Events` → `every window whose subrole is "AXDialog"` → its `static text` — before concluding the operation is unsupported.
 
+**A view's `keyDown` is not where presenter navigation belongs.** `SlidePane` had `acceptsFirstResponder = true` and handled arrows, space and page up/down — but nothing ever *made* it first responder, so navigation silently stopped after a click anywhere else (the mirror pane's buttons especially), with no focus ring in fullscreen to explain why. Navigation now lives in the Navigate menu plus a local `NSEvent` monitor, both dispatched ahead of the focus chain, and both routed through one `NavigationCommand` so they cannot drift.
+
+**macOS restores a window straight back into fullscreen.** Relaunching an app that was quit while fullscreen re-enters fullscreen without the user asking, and `didEnterFullScreenNotification` fires for it. That is a fifth route in alongside the menu item, ⌃⌘F, the green button and the Window menu — which is the argument for reading fullscreen state from the window rather than from a flag the app sets itself.
+
 **`PresentationMode` collides with SwiftUI.** SwiftUI exports its own `PresentationMode` (the legacy `presentationMode` environment binding), so a type of that name in `PresenterCore` makes every use site in a SwiftUI file fail with "ambiguous for type lookup". Ours is `PresentationState`. Renaming beats qualifying it at every reference.
 
 **`HSplitView` gives the first pane its minimum and hands the rest to the second.** It does not divide proportionally, so `SlidePane` sat at exactly its `minWidth` while `MirrorPane` absorbed every remaining point — the deck, which is the primary content, was the smallest thing on screen, worst in fullscreen where it should dominate. `MirrorPane` therefore carries a `maxWidth`. That is right on the merits too: the mirror is aspect-fitted, so past ~480pt the extra width is letterbox rather than phone.

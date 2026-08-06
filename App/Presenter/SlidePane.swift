@@ -180,13 +180,12 @@ final class SlideNSView: NSView {
     private var swipeAccumulator: CGFloat = 0
     private var swipeHandled = false
 
+    /// Only zoom keys here. Slide navigation moved to the Navigate menu and a
+    /// window-level key monitor, because a view's `keyDown` fires only while that
+    /// view is first responder — so clicking anything in the mirror pane used to
+    /// stop the arrow keys silently. See `KeyboardNavigation`.
     override func keyDown(with event: NSEvent) {
         switch event.keyCode {
-        case 123, 126: onPrevious()  // left, up
-        case 124, 125: onNext()  // right, down
-        case 49: onNext()  // space
-        case 116: onPrevious()  // page up
-        case 121: onNext()  // page down
         case 29, 82:  // 0 and keypad 0 — back to fit
             state?.reset()
             needsDisplay = true

@@ -20,7 +20,17 @@ Advancing off the last slide does nothing visible — it does not wrap to the st
 
 Presenter remotes appear as keyboards sending page up/down, so they work without special handling.
 
-### Fullscreen
+### Keyboard navigation
+
+Every navigation action has a menu item, and that is not only for discoverability: **menu key equivalents are dispatched by the menu system rather than the focus chain**, so they keep working wherever the last click landed. A view's `keyDown` fires only while that view is first responder, which made navigation stop silently after clicking in the mirror pane.
+
+The menu carries one shortcut per command — → ← Home End. Space, page up/down and ↑↓ are aliases a presenter and a presenter remote also expect, caught by a local `NSEvent` monitor rather than by giving each command three menu entries. Everything routes through `NavigationCommand`, so menu and keyboard cannot describe different behaviour.
+
+Unmodified keys as shortcuts are captured **app-wide**. There are no text fields today — notes are read-only — and space-advances is the universal presenter convention, so this is the right trade. Whoever adds a text field must revisit it.
+
+Advancing on the last slide does nothing: no wrap, no exit from fullscreen. Both would be surprising mid-talk.
+
+## Fullscreen
 
 Fullscreen hides all chrome — toolbar, thumbnails, window frame. Escape exits. The split ratio is preserved on entry and exit.
 
@@ -35,6 +45,16 @@ Speaker notes for the current slide, in a pane that can be hidden. Empty notes s
 ### Restoring
 
 Reopening restores the last deck, the slide it was on, the layout and the selected mirror source — if the source still exists. A missing source restores the layout with the pane in its "choose a source" state, rather than failing to launch.
+
+## Keyboard navigation
+
+Every navigation action has a menu item, and that is not only for discoverability: **menu key equivalents are dispatched by the menu system rather than the focus chain**, so they keep working wherever the last click landed. A view's `keyDown` fires only while that view is first responder, which made navigation stop silently after clicking in the mirror pane.
+
+The menu carries one shortcut per command — → ← Home End. Space, page up/down and ↑↓ are aliases a presenter and a presenter remote also expect, caught by a local `NSEvent` monitor rather than by giving each command three menu entries. Everything routes through `NavigationCommand`, so menu and keyboard cannot describe different behaviour.
+
+Unmodified keys as shortcuts are captured **app-wide**. There are no text fields today — notes are read-only — and space-advances is the universal presenter convention, so this is the right trade. Whoever adds a text field must revisit it.
+
+Advancing on the last slide does nothing: no wrap, no exit from fullscreen. Both would be surprising mid-talk.
 
 ## Fullscreen
 
