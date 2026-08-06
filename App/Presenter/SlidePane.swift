@@ -37,19 +37,6 @@ final class SlideNSView: NSView {
     private var onNext: () -> Void = {}
     private var onPrevious: () -> Void = {}
 
-    private var cachedImage: CGImage?
-    /// What `cachedImage` was rendered for. Re-render only when one of these
-    /// changes, so a pan does not re-rasterise the page on every event.
-    private var cacheKey: CacheKey?
-
-    private struct CacheKey: Equatable {
-        let slideNumber: Int
-        let width: Int
-        let height: Int
-        let zoom: CGFloat
-        let backingScale: CGFloat
-    }
-
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override var wantsUpdateLayer: Bool { false }
@@ -89,18 +76,15 @@ final class SlideNSView: NSView {
 
         // Rendering at the zoomed pixel size is what makes zoom sharp rather than
         // a magnified bitmap — the whole reason SlideRenderer takes a scale.
+        //
+        // No cache of our own: CachingSlideRenderer holds the pages, keyed on the
+        // same size and scale, so a repeat draw is a hit rather than a
+        // re-rasterisation. One mechanism instead of two that interact.
         let backingScale = window?.backingScaleFactor ?? 2
-        let key = CacheKey(
-            slideNumber: slideNumber,
-            width: Int(fitted.width), height: Int(fitted.height),
-            zoom: zoom, backingScale: backingScale)
-
-        if key != cacheKey {
-            cachedImage = try? renderer.render(
+        guard
+            let image = try? renderer.render(
                 page: page, size: fitted.size, scale: backingScale * zoom)
-            cacheKey = key
-        }
-        guard let image = cachedImage else { return }
+        else { return }
 
         let drawn = SlideLayout.drawRect(fitted: fitted, zoom: zoom, offset: offset)
 
@@ -115,6 +99,13 @@ final class SlideNSView: NSView {
         context.scaleBy(x: 1, y: -1)
         context.draw(image, in: drawn)
         context.restoreGState()
+
+        // Warm the neighbours so the next advance is a cache hit. Only at fit:
+        // while zoomed, the neighbours would be cached at a zoom the presenter is
+        // about to leave, spending the budget on images nobody will see.
+        if zoom == 1, let caching = renderer as? CachingSlideRenderer {
+            caching.prefetch(around: page, size: fitted.size, scale: backingScale)
+        }
     }
 
     // MARK: - Gestures
@@ -203,11 +194,11 @@ final class SlideNSView: NSView {
             y: (local.y - bounds.midY) / bounds.height)
     }
 
-    // Re-render when the window moves to a display with a different backing
-    // scale, or the slide is blurry on the projector.
+    // Redraw when the window moves to a display with a different backing scale,
+    // or the slide is blurry on the projector. Invalidation itself belongs to
+    // CachingSlideRenderer, which purges on a geometry change.
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
-        cacheKey = nil
         needsDisplay = true
     }
 

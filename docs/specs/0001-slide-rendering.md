@@ -32,6 +32,14 @@ Notes resolve through each slide's own `ppt/slides/_rels/slideN.xml.rels` to its
 
 PDF page → `CGImage` at the display's backing scale. An LRU cache holds recently rendered pages and prefetches ±2 from the current position, so advancing does not wait on a render.
 
+**The cache is bounded by bytes, not by page count.** A rendered page costs roughly `width × height × 4`, which swings about 9× with where it is shown — ~4 MB in a window, ~10 MB fullscreen at 2×, ~35 MB fullscreen on a large external display. A page count safe on a projector would waste most of the budget in a window; one generous in a window would reach gigabytes in fullscreen. Bytes self-adjust.
+
+**The page on screen is never evicted.** Under a budget smaller than the working set, a plain LRU drops the visible slide and makes every advance a guaranteed miss — a cache that costs more than it saves.
+
+**A geometry change purges rather than ageing out.** Moving to another display misses naturally, since size and scale are in the key, but leaving the old entries to be evicted gradually would starve the new scale of budget exactly when it needs room.
+
+Prefetch runs off the main actor and is fire-and-forget: it must never delay a keypress, and a failure needs no handling because the synchronous path renders on demand. It is skipped while zoomed, where the neighbours would be cached at a zoom the presenter is about to leave.
+
 ### Failing
 
 Every failure names a remedy. No deck loader available for a `.pptx` offers three: install LibreOffice, use Keynote, or export to PDF. A corrupt file says so rather than showing an empty deck.
