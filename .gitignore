@@ -1,0 +1,24 @@
+# Build products
+.build/
+DerivedData/
+*.xcarchive
+*.dSYM
+
+# SwiftPM
+.swiftpm/
+
+# Package.resolved is deliberately NOT ignored. Ignoring it is right for a
+# library and wrong for an app: pinned dependency versions are what make a
+# build reproducible. There are no external dependencies yet, which is
+# precisely why this is cheap to get right now and irritating to discover
+# later.
+
+# Xcode user state. The project file itself is committed on purpose
+# (see docs/adr/0001-project-structure.md); only per-user state is ignored.
+xcuserdata/
+*.xcuserdatad
+*.xcscmblueprint
+*.xccheckout
+
+# macOS
+.DS_Store

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Sandbox is deliberately off; see docs/adr/0005-distribution.md.
+	     Hardened Runtime is on, so the capabilities below must be declared. -->
+
+	<!-- AVFoundation capture of a USB-connected iOS device (MirrorKit DeviceSource). -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+
+	<!-- Driving Keynote to convert .pptx when LibreOffice is absent
+	     (SlideKit KeynoteDeckLoader). -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>
