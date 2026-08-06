@@ -39,6 +39,30 @@ Every PR body ends with `Closes #N`. Say what you verified and how — "ran `mak
 
 Merging is squash-only, and branches delete themselves afterwards. Merge commits and rebase merges are disabled at the repo level, so there is no way to accidentally do it differently.
 
+### Stacked pull requests
+
+Sometimes a PR depends on one that has not merged yet, so its base is the branch below it rather than `main`. That shape is pleasant to review and dangerous to merge, because both of the ways it goes wrong are silent.
+
+Branches delete themselves on merge, which pulls the base out from under whatever was stacked on top. GitHub then either retargets the child PR to `main` or closes it outright. During M0 it did both — same repository, minutes apart, no notification either time. **A closed PR cannot be retargeted, and a PR whose base branch is gone cannot be reopened.** Pushing the deleted branch back does not revive it. At that point the work has to move to a new PR.
+
+Squash-merging is the other half. It creates a *new* commit, so the stacked branch's merge-base never advances and its diff grows to include everything underneath it.
+
+So land a stack one PR at a time, bottom first, rebasing in between:
+
+```bash
+gh pr merge 10 --squash --delete-branch
+git checkout main && git pull
+
+# now the PR that was stacked on #10
+git rebase --onto main <tip-of-the-old-base> ci/7-workflow
+git push --force-with-lease origin ci/7-workflow
+gh pr view 15 --json baseRefName        # must say "main" before you merge it
+```
+
+`--onto` with the old base tip is what drops the commits already absorbed into the squash. A plain `git rebase main` replays them and conflicts against files the squash commit already contains.
+
+Do not batch this in a loop. A loop that redirects output hides the `git rebase` failure and carries on printing success — which is how M0's stack was lost while the terminal reported that every PR had landed.
+
 ## Before you push
 
 ```bash
