@@ -81,6 +81,37 @@ struct SimulatorWindowsTests {
     }
 }
 
+@MainActor
+@Suite("Frame watchdog")
+struct FrameWatchdogTests {
+
+    @Test("The timeout is short enough that black is never the resting state")
+    func timeoutIsShort() {
+        // A stream that starts cleanly and delivers nothing is indistinguishable
+        // from success at the API level, so the only detection is elapsed time
+        // with no frame. Too long and the user stares at black wondering; this
+        // bounds it.
+        #expect(SimulatorSource.firstFrameTimeout <= .seconds(5))
+        #expect(SimulatorSource.firstFrameTimeout >= .seconds(1))
+    }
+
+    @Test("A no-frames failure is captureFailed and says what to check")
+    func noFramesMessage() {
+        // The message has to name the causes, because "no frames" alone gives
+        // the user nothing to act on. Hidden, minimised and Space are the three
+        // ways a window exists but is not drawn.
+        let error = MirrorError.captureFailed(
+            reason: "Capture started but no frames arrived. The Simulator may be hidden, "
+                + "minimised, or on another Space.")
+        guard case .captureFailed(let reason) = error else {
+            Issue.record("expected captureFailed")
+            return
+        }
+        #expect(reason.contains("hidden"))
+        #expect(reason.contains("Space"))
+    }
+}
+
 @Suite("MirrorError mapping")
 struct MirrorErrorMappingTests {
 

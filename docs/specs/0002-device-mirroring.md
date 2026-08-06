@@ -23,6 +23,16 @@ Each source has a stable `id` across refreshes, so a selection survives one disa
   > This spec previously named `com.apple.CoreSimulator.SimulatorTrampoline`, which is wrong. That is the XPC service which *launches* the Simulator; it owns no windows, so filtering on it matches nothing. The symptom is an empty source list rather than an error, so it reads as "capture is broken" instead of "wrong identifier". Verified against a running Simulator, whose window is owned by `Simulator.app` (`com.apple.iphonesimulator`) and titled like `"iPhone 17 – iOS 26.4"`.
 
   Filter out zero-sized and untitled windows too — the Simulator owns chrome windows that are not the device, and capturing one gives a blank pane indistinguishable from a failure.
+
+  **The Simulator must be visible.** A hidden app (⌘H) is not drawn, so capture starts cleanly and delivers zero frames with no error anywhere. Unhide it before capturing — `NSRunningApplication.unhide()` restores its windows without activating it, so focus stays with the presenter.
+
+  **Treat "no first frame" as a failure.** Since a silent zero-frame stream is indistinguishable from success at the API level, the source waits for a first frame and reports an explanation if none arrives. Without that, every cause of this class — hidden app, another Space, anything future — presents as an unexplained black pane.
+
+### Device framing
+
+The Simulator window **includes the device chassis** — the iPhone 17 window is 435x929 around a smaller screen — so capturing the window gives the wrapped-device look for free, and the pane only has to avoid stretching it.
+
+A physical device does not: CoreMediaIO vends the raw screen (1284x2778 measured in spike #22) with no chassis. Matching the Simulator's presentation on the device path (#25) therefore needs a synthetic frame drawn around the feed. That is a constraint on #25, not a task before it.
 - **Device** — CoreMediaIO + `AVCaptureSession` into an `AVCaptureVideoPreviewLayer`.
 
 Both vend a `CALayer` through `MirrorSource`, so one host view displays either.

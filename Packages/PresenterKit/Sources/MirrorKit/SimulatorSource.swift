@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 import CoreMedia
 import Foundation
 import QuartzCore
@@ -68,6 +69,10 @@ public final class SimulatorSource: MirrorSource {
     public func start() async throws -> CALayer {
         if let layer { return layer }
 
+        // Before anything else: a hidden Simulator is not drawn, so capture
+        // would succeed and deliver nothing.
+        Self.revealSimulatorIfHidden()
+
         // Re-fetch rather than holding the SCWindow from discovery: a window
         // captured from a stale list may already be gone, and SCStream's error
         // for that is far less clear than checking here.
@@ -113,10 +118,46 @@ public final class SimulatorSource: MirrorSource {
             throw MirrorError.from(error, kind: .simulator)
         }
 
+        // Starting successfully does not mean frames are coming. A hidden app —
+        // or one on another Space — still yields a valid SCWindow, so the filter
+        // and startCapture both succeed while the window server draws nothing.
+        // The result is a black pane with no error anywhere, which is the single
+        // most expensive failure mode this backend has. Waiting for the first
+        // frame is the only reliable way to detect it.
+        guard await output.waitForFirstFrame(timeout: Self.firstFrameTimeout) else {
+            try? await stream.stopCapture()
+            throw MirrorError.captureFailed(
+                reason: """
+                    Capture started but no frames arrived. The Simulator may be \
+                    hidden, minimised, or on another Space — it has to be visible \
+                    somewhere for macOS to draw it.
+                    """)
+        }
+
         self.stream = stream
         self.output = output
         self.layer = displayLayer
         return displayLayer
+    }
+
+    /// Long enough for a slow first frame, short enough that a black pane is
+    /// never what the user is left looking at.
+    static let firstFrameTimeout: Duration = .seconds(3)
+
+    /// Makes the Simulator visible, because a hidden app is not drawn and so
+    /// produces no frames.
+    ///
+    /// `unhide()` restores its windows **without** activating it, so the
+    /// Simulator comes back behind this app rather than stealing focus — which
+    /// matters when the point of the app is to be the thing on screen. Asking to
+    /// mirror the Simulator is an unambiguous request to see it, so doing this
+    /// is carrying out the instruction rather than a surprise.
+    private static func revealSimulatorIfHidden() {
+        for app in NSRunningApplication.runningApplications(
+            withBundleIdentifier: SimulatorWindows.bundleIdentifier)
+        where app.isHidden {
+            app.unhide()
+        }
     }
 
     public func stop() async {
@@ -150,8 +191,38 @@ private final class StreamOutput: NSObject, SCStreamOutput, SCStreamDelegate, @u
     private let layer: AVSampleBufferDisplayLayer
     var onStopped: ((MirrorError) -> Void)?
 
+    private let lock = NSLock()
+    private var sawFrame = false
+
     init(layer: AVSampleBufferDisplayLayer) {
         self.layer = layer
+    }
+
+    private var hasFrame: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return sawFrame
+    }
+
+    private func noteFrame() {
+        lock.lock()
+        defer { lock.unlock() }
+        sawFrame = true
+    }
+
+    /// Whether a frame arrived within `timeout`.
+    ///
+    /// Polled rather than continuation-based on purpose: frames arrive on a
+    /// capture queue, and a continuation resumed from there races with the
+    /// timeout path. A missed resume would hang `start()` forever, which is a
+    /// worse bug than the one being detected.
+    func waitForFirstFrame(timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if hasFrame { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return hasFrame
     }
 
     func stream(
@@ -159,6 +230,7 @@ private final class StreamOutput: NSObject, SCStreamOutput, SCStreamDelegate, @u
         of type: SCStreamOutputType
     ) {
         guard type == .screen, sampleBuffer.isValid else { return }
+        noteFrame()
 
         // Frames arrive whether or not anything changed on screen; SCK marks the
         // ones with no new content. Enqueuing those wastes work and can stall the
@@ -169,6 +241,22 @@ private final class StreamOutput: NSObject, SCStreamOutput, SCStreamDelegate, @u
             let raw = attachments.first?[.status] as? Int,
             let status = SCFrameStatus(rawValue: raw), status == .complete
         else { return }
+
+        // Mark the frame for immediate display. Without this the renderer waits
+        // on a control timebase that was never set, so buffers are accepted and
+        // then never presented -- the pane stays black while capture is working
+        // perfectly. Setting a timebase is the alternative; for a live mirror
+        // there is nothing to synchronise against, so immediate is both simpler
+        // and more correct.
+        if let attachments = CMSampleBufferGetSampleAttachmentsArray(
+            sampleBuffer, createIfNecessary: true) as? [CFMutableDictionary],
+            let first = attachments.first
+        {
+            CFDictionarySetValue(
+                first,
+                Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
+        }
 
         if layer.sampleBufferRenderer.status == .failed {
             layer.sampleBufferRenderer.flush()
