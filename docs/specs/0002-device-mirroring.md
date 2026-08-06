@@ -6,7 +6,7 @@
 
 Show a live iOS screen in the right pane — a booted Simulator or a USB-connected device — at a frame rate that makes a demo watchable.
 
-> **Gated on a spike.** Whether `DeviceSource` can exist at all is unresolved; see ADR-0003. If the CoreMediaIO path is closed, the physical-device criteria below are met through the QuickTime-window fallback instead, and this spec is updated to say so.
+> **Spike resolved.** `DeviceSource` is real: an unentitled app sees a USB iPhone at 13–40 fps, device-native resolution, no entitlement. See ADR-0003 for the measurements and for the three constraints that shape the implementation — the Continuity decoy, notification-driven arrival, and intermittent republication. The QuickTime-window fallback is retained for a device that will not come up, not as the primary path.
 
 ## Behaviour
 
@@ -43,7 +43,9 @@ A Simulator shutting down or a cable being pulled mid-presentation surfaces `sou
 
 - [ ] A booted Simulator appears in the source list within ~2s of booting
 - [ ] Selecting it shows live video at ≥ 20 fps
-- [ ] A USB-connected iPhone appears and mirrors live — **or** the documented QuickTime fallback does
+- [ ] A USB-connected iPhone appears within ~3s of the property being set and mirrors live at ≥ 13 fps
+- [ ] The source list offers the phone's **screen**, never its Continuity camera or Desk View
+- [ ] A device that does not appear shows a retrying state, not a permanent "no device" — publication is intermittent after a previous session
 - [ ] Rotating the device updates the image without restarting capture
 - [ ] The image is aspect-correct at every pane width; letterboxed, never stretched or cropped
 - [ ] Denying Screen Recording shows an explaining state with a working Settings link
