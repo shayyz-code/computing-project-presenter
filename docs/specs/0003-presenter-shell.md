@@ -20,7 +20,26 @@ Advancing off the last slide does nothing visible — it does not wrap to the st
 
 Presenter remotes appear as keyboards sending page up/down, so they work without special handling.
 
-### Keyboard navigation
+### Session restore
+
+The deck, slide position and notes visibility come back on relaunch. **The mirror source is remembered but not reconnected** — connecting would unhide the Simulator uninvited and could fire a Camera or Screen Recording prompt before the user had done anything, so the source is pre-selected and waits for a click.
+
+Degradation is the design, because a stale session is the *normal* case for a machine that moves between a desk and a lecture theatre:
+
+| Saved state | Behaviour |
+|---|---|
+| Deck moved or deleted | Restore the rest; the empty state **names the missing file** |
+| Deck now shorter than the saved position | Clamped by `SlideNavigator`'s construction rule |
+| Mirror source gone | Deck restores; source left unselected |
+| Corrupt saved data | Discarded; launch proceeds |
+
+**A saved session is a convenience and must never prevent the app from launching.** That is why `SessionStore.load()` returns `nil` rather than throwing.
+
+The stored value is a plain path, which only works because App Sandbox is deliberately off (ADR-0005). **If the app is ever sandboxed for the Mac App Store a stored path stops resolving and needs a security-scoped bookmark** — the sort of thing that breaks silently at the worst moment.
+
+Restoring a `.pptx` is normally instant because conversions are content-hash cached, but a cleared cache means a full reconversion on launch — up to the 321 s cold-LibreOffice case. The converting state covers it and ⌘O still works meanwhile.
+
+## Keyboard navigation
 
 Every navigation action has a menu item, and that is not only for discoverability: **menu key equivalents are dispatched by the menu system rather than the focus chain**, so they keep working wherever the last click landed. A view's `keyDown` fires only while that view is first responder, which made navigation stop silently after clicking in the mirror pane.
 
@@ -45,6 +64,25 @@ Speaker notes for the current slide, in a pane that can be hidden. Empty notes s
 ### Restoring
 
 Reopening restores the last deck, the slide it was on, the layout and the selected mirror source — if the source still exists. A missing source restores the layout with the pane in its "choose a source" state, rather than failing to launch.
+
+## Session restore
+
+The deck, slide position and notes visibility come back on relaunch. **The mirror source is remembered but not reconnected** — connecting would unhide the Simulator uninvited and could fire a Camera or Screen Recording prompt before the user had done anything, so the source is pre-selected and waits for a click.
+
+Degradation is the design, because a stale session is the *normal* case for a machine that moves between a desk and a lecture theatre:
+
+| Saved state | Behaviour |
+|---|---|
+| Deck moved or deleted | Restore the rest; the empty state **names the missing file** |
+| Deck now shorter than the saved position | Clamped by `SlideNavigator`'s construction rule |
+| Mirror source gone | Deck restores; source left unselected |
+| Corrupt saved data | Discarded; launch proceeds |
+
+**A saved session is a convenience and must never prevent the app from launching.** That is why `SessionStore.load()` returns `nil` rather than throwing.
+
+The stored value is a plain path, which only works because App Sandbox is deliberately off (ADR-0005). **If the app is ever sandboxed for the Mac App Store a stored path stops resolving and needs a security-scoped bookmark** — the sort of thing that breaks silently at the worst moment.
+
+Restoring a `.pptx` is normally instant because conversions are content-hash cached, but a cleared cache means a full reconversion on launch — up to the 321 s cold-LibreOffice case. The converting state covers it and ⌘O still works meanwhile.
 
 ## Keyboard navigation
 
