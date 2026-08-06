@@ -17,6 +17,14 @@ struct PresenterApp: App {
                 .keyboardShortcut("o")
             }
             CommandGroup(after: .toolbar) {
+                // Discoverable rather than gesture-only. ⌃⌘F is the system
+                // fullscreen shortcut, so this reinforces the habit instead of
+                // competing with it.
+                Button("Enter Presentation Mode") {
+                    NotificationCenter.default.post(name: .togglePresentationRequested, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: [.control, .command])
+
                 Button("Show Speaker Notes") {
                     NotificationCenter.default.post(name: .toggleNotesRequested, object: nil)
                 }
