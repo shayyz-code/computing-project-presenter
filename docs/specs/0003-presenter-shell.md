@@ -36,6 +36,18 @@ Speaker notes for the current slide, in a pane that can be hidden. Empty notes s
 
 Reopening restores the last deck, the slide it was on, the layout and the selected mirror source — if the source still exists. A missing source restores the layout with the pane in its "choose a source" state, rather than failing to launch.
 
+## Fullscreen
+
+Fullscreen **hides notes and the timer**, because on a single display whatever is on screen is what a projector mirrors. ⇧⌘N reveals them for the laptop-only case.
+
+**The safe default reasserts on every entry.** Revealing notes applies to that presentation only; leaving and re-entering hides them again. A preference left on last week must not put a script in front of a room today, and the failure is asymmetric — exposure is embarrassing and irreversible, a missing note costs one keystroke.
+
+Fullscreen state is read from `NSWindow.didEnterFullScreenNotification`, never from a flag the app sets itself: fullscreen is reachable from the menu item, ⌃⌘F, the green button and the Window menu, and a self-managed flag is wrong for three of them.
+
+Escape exits, because that is what a presenter reaches for — native macOS fullscreen does not do this by default.
+
+The display is kept awake with `NSActivityIdleDisplaySleepDisabled` while presenting, released on exit **and** on window close. An unbalanced assertion keeps the display awake for the process lifetime.
+
 ## Presenter-only surfaces
 
 Speaker notes and the elapsed timer must **never** reach an audience display. They live in `NotesPane`, kept a separate view from the deck so that moving it to a presenter-only window when multi-display lands (#31) is a reparenting rather than a rewrite.

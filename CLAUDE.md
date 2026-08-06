@@ -63,6 +63,10 @@ docs/{adr,specs}/
 
 **When Apple Events times out, look at what the app is showing.** Keynote reports nothing to the script while a modal is up. Read the dialog out of the accessibility tree — `System Events` → `every window whose subrole is "AXDialog"` → its `static text` — before concluding the operation is unsupported.
 
+**`PresentationMode` collides with SwiftUI.** SwiftUI exports its own `PresentationMode` (the legacy `presentationMode` environment binding), so a type of that name in `PresenterCore` makes every use site in a SwiftUI file fail with "ambiguous for type lookup". Ours is `PresentationState`. Renaming beats qualifying it at every reference.
+
+**`HSplitView` gives the first pane its minimum and hands the rest to the second.** It does not divide proportionally, so `SlidePane` sat at exactly its `minWidth` while `MirrorPane` absorbed every remaining point — the deck, which is the primary content, was the smallest thing on screen, worst in fullscreen where it should dominate. `MirrorPane` therefore carries a `maxWidth`. That is right on the merits too: the mirror is aspect-fitted, so past ~480pt the extra width is letterbox rather than phone.
+
 **A flipped `NSView` draws `CGImage`s upside down.** `isFlipped = true` gives top-left origin so layout arithmetic reads naturally, but `CGContext.draw(_:in:)` places images in bottom-left space — so every slide renders inverted. `SlidePane` flips about the drawn rect before drawing. This shipped undetected in #45 because rendering was only ever verified by sampling pixels in tests; **look at the app** before believing a rendering path works.
 
 **`#expect` cannot contain a mutating call.** The macro expands its argument into a closure over an immutable binding, so `#expect(nav.advance())` fails to compile with "cannot use mutating member on immutable value". Bind the result first:

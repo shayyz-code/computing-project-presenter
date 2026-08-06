@@ -17,7 +17,10 @@ struct ContentView: View {
     @State private var deck: Deck?
     @State private var status: LoadStatus = .idle
     @State private var timer = PresentationTimer()
-    @AppStorage("showsNotes") private var showsNotes = true
+    /// Persisted windowed preference. Fullscreen carries its own separate
+    /// override, so presenting never rewrites this.
+    @AppStorage("showsNotes") private var showsNotesWindowed = true
+    @State private var presentation = PresentationController(showsNotesWindowed: true)
 
     var body: some View {
         HSplitView {
@@ -33,7 +36,7 @@ struct ContentView: View {
                         onPrevious: { _ = navigator.retreat() }
                     )
                     // The deck keeps the space; notes take a modest strip below.
-                    if showsNotes, deck != nil {
+                    if presentation.mode.showsNotes, deck != nil {
                         NotesPane(deck: deck, slideNumber: navigator.position, timer: timer)
                             .frame(height: 150)
                     }
@@ -51,14 +54,43 @@ struct ContentView: View {
                 }
             }
             MirrorPane()
-                .frame(minWidth: 280)
+                // Capped, so the deck gets the space. A phone is tall and
+                // narrow — at a typical window height it needs about 350pt to
+                // fill vertically, and past ~480 the extra width is letterbox
+                // rather than phone, because the layer is aspect-fitted.
+                // Without a cap, HSplitView hands the slide pane its bare
+                // minimum and gives everything else here: the primary content
+                // ends up the smallest thing on screen, worst of all in
+                // fullscreen where the deck should dominate.
+                .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
         }
-        .frame(minWidth: 900, minHeight: 560)
+        // Relaxed while presenting: a minimum wider than a small external
+        // display would fight the layout rather than protect it.
+        .frame(
+            minWidth: presentation.mode.isFullscreen ? nil : 900,
+            minHeight: presentation.mode.isFullscreen ? nil : 560
+        )
+        // Native macOS fullscreen does not exit on Escape — it wants ⌃⌘F or the
+        // green button. A presenter reaches for Escape, so wire it.
+        .onExitCommand {
+            if presentation.mode.isFullscreen { presentation.toggleFullscreen() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openDeckRequested)) { _ in
             openDeck()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleNotesRequested)) { _ in
-            showsNotes.toggle()
+            presentation.toggleNotes()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .togglePresentationRequested)) { _ in
+            presentation.toggleFullscreen()
+        }
+        // Keep the persisted preference in step with the windowed setting, in
+        // whichever direction it changed.
+        .onChange(of: presentation.mode.showsNotesWindowed) { _, new in
+            showsNotesWindowed = new
+        }
+        .onAppear {
+            presentation.mode.showsNotesWindowed = showsNotesWindowed
         }
     }
 
@@ -158,6 +190,7 @@ extension UTType {
 extension Notification.Name {
     static let openDeckRequested = Notification.Name("openDeckRequested")
     static let toggleNotesRequested = Notification.Name("toggleNotesRequested")
+    static let togglePresentationRequested = Notification.Name("togglePresentationRequested")
 }
 
 /// An empty pane: what it is, why it is empty, and an optional way out of that.
