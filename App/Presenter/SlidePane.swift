@@ -107,6 +107,12 @@ final class SlideNSView: NSView {
         context.saveGState()
         context.clip(to: fitted)
         context.interpolationQuality = .high
+        // This view is flipped (top-left origin, so layout arithmetic reads
+        // naturally) but `CGContext.draw` places an image in bottom-left space.
+        // Without undoing that, every slide renders upside down. Flipping about
+        // the drawn rect keeps the geometry above unchanged.
+        context.translateBy(x: 0, y: drawn.minY + drawn.maxY)
+        context.scaleBy(x: 1, y: -1)
         context.draw(image, in: drawn)
         context.restoreGState()
     }

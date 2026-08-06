@@ -16,6 +16,12 @@ struct PresenterApp: App {
                 }
                 .keyboardShortcut("o")
             }
+            CommandGroup(after: .toolbar) {
+                Button("Show Speaker Notes") {
+                    NotificationCenter.default.post(name: .toggleNotesRequested, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+            }
         }
     }
 }

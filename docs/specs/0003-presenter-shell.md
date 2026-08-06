@@ -36,6 +36,12 @@ Speaker notes for the current slide, in a pane that can be hidden. Empty notes s
 
 Reopening restores the last deck, the slide it was on, the layout and the selected mirror source — if the source still exists. A missing source restores the layout with the pane in its "choose a source" state, rather than failing to launch.
 
+## Presenter-only surfaces
+
+Speaker notes and the elapsed timer must **never** reach an audience display. They live in `NotesPane`, kept a separate view from the deck so that moving it to a presenter-only window when multi-display lands (#31) is a reparenting rather than a rewrite.
+
+A slide with no notes shows **nothing** — not a labelled empty box, which reads as "something failed to load". A `.pdf` deck carries no notes at all, so the pane is absent rather than permanently blank.
+
 ## Acceptance criteria
 
 - [ ] Dragging the split resizes both panes; the ratio survives a relaunch
