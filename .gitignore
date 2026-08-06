@@ -22,3 +22,7 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Claude Code personal overrides. Agent and command definitions in
+# .claude/ are committed; permission grants are per-machine.
+.claude/settings.local.json
