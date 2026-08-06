@@ -41,11 +41,8 @@ struct ContentView: View {
                         .controlSize(.large)
                 }
             }
-            PlaceholderPane(
-                title: "Device",
-                detail: "Mirror a simulator or a connected iPhone",
-                symbol: "iphone.gen3"
-            )
+            MirrorPane()
+                .frame(minWidth: 280)
         }
         .frame(minWidth: 900, minHeight: 560)
         .onReceive(NotificationCenter.default.publisher(for: .openDeckRequested)) { _ in

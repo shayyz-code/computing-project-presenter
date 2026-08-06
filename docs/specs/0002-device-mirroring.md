@@ -18,7 +18,11 @@ Each source has a stable `id` across refreshes, so a selection survives one disa
 
 ### Capturing
 
-- **Simulator / window** — ScreenCaptureKit into an `AVSampleBufferDisplayLayer`. Simulator windows are found by filtering `SCShareableContent` on `com.apple.CoreSimulator.SimulatorTrampoline`.
+- **Simulator / window** — ScreenCaptureKit into an `AVSampleBufferDisplayLayer`. Simulator windows are found by filtering `SCShareableContent` on **`com.apple.iphonesimulator`**.
+
+  > This spec previously named `com.apple.CoreSimulator.SimulatorTrampoline`, which is wrong. That is the XPC service which *launches* the Simulator; it owns no windows, so filtering on it matches nothing. The symptom is an empty source list rather than an error, so it reads as "capture is broken" instead of "wrong identifier". Verified against a running Simulator, whose window is owned by `Simulator.app` (`com.apple.iphonesimulator`) and titled like `"iPhone 17 – iOS 26.4"`.
+
+  Filter out zero-sized and untitled windows too — the Simulator owns chrome windows that are not the device, and capturing one gives a blank pane indistinguishable from a failure.
 - **Device** — CoreMediaIO + `AVCaptureSession` into an `AVCaptureVideoPreviewLayer`.
 
 Both vend a `CALayer` through `MirrorSource`, so one host view displays either.
