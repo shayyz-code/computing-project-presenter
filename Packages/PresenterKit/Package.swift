@@ -1,9 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
+// 6.2 rather than 6.0 because `.macOS(.v26)` is gated behind
+// `@available(_PackageDescription 6.2)` — see ADR-0006.
 import PackageDescription
 
 let package = Package(
     name: "PresenterKit",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v26)],
     products: [
         .library(name: "SlideKit", targets: ["SlideKit"]),
         .library(name: "MirrorKit", targets: ["MirrorKit"]),

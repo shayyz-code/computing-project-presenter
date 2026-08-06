@@ -26,9 +26,13 @@ struct ContentView: View {
             } else {
                 PlaceholderPane(
                     title: "Slides",
-                    detail: "Open a .pdf deck  ·  ⌘O",
+                    detail: "No deck open yet",
                     symbol: "rectangle.on.rectangle"
-                )
+                ) {
+                    Button("Open Deck…") { openDeck() }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.large)
+                }
             }
             PlaceholderPane(
                 title: "Device",
@@ -72,25 +76,43 @@ extension Notification.Name {
     static let openDeckRequested = Notification.Name("openDeckRequested")
 }
 
-private struct PlaceholderPane: View {
+/// An empty pane: what it is, why it is empty, and an optional way out of that.
+///
+/// Glass rather than a flat fill, per ADR-0006. The `GlassEffectContainer` is not
+/// decoration — sibling glass views each sample their own backdrop and read as
+/// muddy where they meet, and the container is what makes them behave as one
+/// material.
+private struct PlaceholderPane<Action: View>: View {
     let title: String
     let detail: String
     let symbol: String
+    @ViewBuilder var action: Action
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.tertiary)
-            Text(title)
-                .font(.headline)
-            Text(detail)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        GlassEffectContainer(spacing: 16) {
+            VStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(.tertiary)
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                action
+                    .padding(.top, 6)
+            }
+            .padding(28)
+            .glassEffect(in: .rect(cornerRadius: 20))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-        .background(.background.secondary)
+    }
+}
+
+extension PlaceholderPane where Action == EmptyView {
+    init(title: String, detail: String, symbol: String) {
+        self.init(title: title, detail: detail, symbol: symbol) { EmptyView() }
     }
 }
 
