@@ -30,6 +30,8 @@ The sandbox buys its security value mainly on the Mac App Store, which this app 
 
 Notarization requires an Apple Developer account. CI builds unsigned (`CODE_SIGNING_ALLOWED=NO`) so contributors without one can still build and test.
 
+**The audience is narrower than "anyone with a Mac".** [ADR-0006](0006-design-language.md) sets the floor at macOS 26.0 to adopt Liquid Glass, so macOS 15 users cannot run this at all. That was chosen knowingly; it is recorded here because "distributed to other people" is this ADR's premise and it now means fewer people.
+
 ## Alternatives
 
 **Sandboxed + Mac App Store** — the widest-trust distribution, at the cost of the LibreOffice backend and a fragile entitlement. Reconsider only if `.pptx` fidelity stops depending on external converters.
