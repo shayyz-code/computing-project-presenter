@@ -55,9 +55,13 @@ Every failure names a remedy. No deck loader available for a `.pptx` offers thre
 
 The ordering and notes-mapping criteria need a **hand-built fixture**, since decks exported by normal tools tend to have contiguous notes and sequential ordering — exactly the cases that hide these bugs. Build a `.pptx` with sparse notes and a shuffled `sldIdLst` and commit it.
 
-Sparse notes are not merely hypothetical: a real 53-slide lecture deck used in spike #16 carried **18** `notesSlide` parts, so positional mapping would misplace notes from slide 2 onward. The fixture just makes the case small enough to assert.
+Sparse notes are not merely hypothetical: a real 53-slide lecture deck used in spike #16 carried notes on only **9** slides, and its `notesSlide3.xml` belongs to **slide 9**. Positional mapping puts slide 9's notes on slide 3. The fixture just makes the case small enough to assert.
+
+**A fixture must also make its rIds unsortable into author order.** `<p:sldId r:id="…">` entries cite relationship ids, and PowerPoint assigns an rId when a slide is created and never renumbers on reorder — so in a real deck rId order and author order are unrelated. A fixture where they coincide cannot detect a reader that ignores `sldIdLst`, because sorting the rIds happens to give the right answer. `make-fixtures.py` therefore uses ids like `rId7, rId3, rId5`. This was found by mutation-testing the fixtures: an early version passed against a reader that sorted instead of reading document order.
 
 Ground truth for slide count is `<p:sldId>` entries in `ppt/presentation.xml`, read directly from the zip. Asserting a converter's page count against another converter's tests neither.
+
+**Zip entries are not all deflated.** Across 61 real decks: 8311 DEFLATE entries and 1219 STORED, of which 82 were `.xml` — exactly the parts a metadata reader fetches. Treating everything as deflate returns garbage for those and reports no error, so at least one fixture carries a STORED `.xml` part.
 
 Fixture-based tests run in CI. Conversion tests need `soffice` or Keynote consent, so they are tagged and excluded — verify those by hand.
 
