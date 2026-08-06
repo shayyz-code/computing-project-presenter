@@ -32,7 +32,11 @@ Each source has a stable `id` across refreshes, so a selection survives one disa
 
 The Simulator window **includes the device chassis** — the iPhone 17 window is 435x929 around a smaller screen — so capturing the window gives the wrapped-device look for free, and the pane only has to avoid stretching it.
 
-A physical device does not: CoreMediaIO vends the raw screen (1284x2778 measured in spike #22) with no chassis. Matching the Simulator's presentation on the device path (#25) therefore needs a synthetic frame drawn around the feed. That is a constraint on #25, not a task before it.
+A physical device does not: CoreMediaIO vends the raw screen (1284x2778 measured in spike #22) with no chassis, so `DeviceChassis` draws one — a rounded body with the screen inset by a proportional bezel and concentric corner radii.
+
+Deliberately geometry rather than artwork: no notch, no Dynamic Island, no per-model metrics. Those need real assets and a device database, and everything proportional means one implementation serves a 200pt pane and a projector alike.
+
+**Only the device path is framed.** A Simulator window already contains its bezel; drawing another would put a phone inside a phone. The Simulator's *macOS window chrome* — title bar and toolbar — is cropped at the capture stage with `SCStreamConfiguration.sourceRect`, so the two sources read as the same kind of object without either being double-framed.
 - **Device** — CoreMediaIO + `AVCaptureSession` into an `AVCaptureVideoPreviewLayer`.
 
 Both vend a `CALayer` through `MirrorSource`, so one host view displays either.

@@ -8,8 +8,11 @@ import SwiftUI
 /// rotation handling and the full permission UI are #26; source discovery with
 /// live list updates is #24.
 struct MirrorPane: View {
-    @State private var source: SimulatorSource?
+    @State private var source: (any MirrorSource)?
     @State private var state: MirrorState = .idle
+    /// Which source was last attempted, so retries and permission messages
+    /// address the right one.
+    @State private var lastKind: MirrorSourceKind = .simulator
 
     var body: some View {
         Group {
@@ -18,44 +21,60 @@ struct MirrorPane: View {
                 MirrorMessage(
                     symbol: "iphone.gen3", title: "Device", detail: "No source selected"
                 ) {
-                    Button("Mirror Simulator") { Task { await connect() } }
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.large)
+                    VStack(spacing: 8) {
+                        Button("Mirror Simulator") { Task { await connect(.simulator) } }
+                            .buttonStyle(.glassProminent)
+                            .controlSize(.large)
+                        Button("Mirror iPhone") { Task { await connect(.device) } }
+                            .buttonStyle(.glass)
+                    }
                 }
 
             case .searching:
                 MirrorMessage(
-                    symbol: "iphone.gen3", title: "Device", detail: "Looking for a Simulator…"
+                    symbol: "iphone.gen3", title: "Device",
+                    detail: lastKind == .device
+                        ? "Looking for a connected iPhone…" : "Looking for a Simulator…"
                 ) {
                     ProgressView().controlSize(.small)
                 }
 
             case .mirroring(let layer):
+                // The chassis is drawn only for a physical device. A Simulator
+                // window already contains its own bezel, so framing it again
+                // would put a phone inside a phone.
                 // The layer travels in the case rather than beside it. Holding
                 // it separately let `.mirroring` coexist with a nil layer, which
                 // rendered as a bare spinner with no way out — and `onDisappear`
                 // firing spuriously was enough to cause it.
-                LayerHost(layer: layer)
+                LayerHost(layer: layer, drawsChassis: lastKind == .device)
 
             case .noSource:
                 MirrorMessage(
                     symbol: "iphone.slash",
-                    title: "No Simulator running",
-                    detail: "Boot one from Xcode, then try again."
+                    title: lastKind == .device ? "No iPhone found" : "No Simulator running",
+                    detail: lastKind == .device
+                        ? "Connect an iPhone by USB, unlock it, and tap Trust."
+                        : "Boot one from Xcode, then try again."
                 ) {
-                    Button("Try Again") { Task { await connect() } }
+                    Button("Try Again") { Task { await connect(lastKind) } }
                         .buttonStyle(.glass)
                 }
 
             case .denied:
                 // Recoverable by the user, so it must say so and take them
-                // there. A blank pane here is a bug, per spec 0002.
+                // there. A blank pane here is a bug, per spec 0002. Which pane
+                // depends on the source: Screen Recording and Camera are
+                // different TCC services, and the wrong link cannot help.
                 MirrorMessage(
                     symbol: "lock.display",
-                    title: "Screen Recording is off",
-                    detail: "Presenter needs Screen Recording permission to mirror a Simulator."
+                    title: lastKind.needsScreenRecordingPermission
+                        ? "Screen Recording is off" : "Camera access is off",
+                    detail: lastKind.needsScreenRecordingPermission
+                        ? "Presenter needs Screen Recording permission to mirror a Simulator."
+                        : "Presenter needs Camera permission to mirror a connected iPhone."
                 ) {
-                    Button("Open Settings") { openScreenRecordingSettings() }
+                    Button("Open Settings") { openPrivacySettings(for: lastKind) }
                         .buttonStyle(.glassProminent)
                 }
 
@@ -65,7 +84,7 @@ struct MirrorPane: View {
                     title: "Could not mirror",
                     detail: reason
                 ) {
-                    Button("Try Again") { Task { await connect() } }
+                    Button("Try Again") { Task { await connect(lastKind) } }
                         .buttonStyle(.glass)
                 }
 
@@ -77,7 +96,7 @@ struct MirrorPane: View {
                     title: "Simulator disconnected",
                     detail: "The Simulator stopped or quit."
                 ) {
-                    Button("Reconnect") { Task { await connect() } }
+                    Button("Reconnect") { Task { await connect(lastKind) } }
                         .buttonStyle(.glassProminent)
                 }
             }
@@ -89,23 +108,30 @@ struct MirrorPane: View {
         // The pane lives as long as the window; the window closing releases it.
     }
 
-    private func connect() async {
+    private func connect(_ kind: MirrorSourceKind) async {
         await disconnect()
+        lastKind = kind
         state = .searching
 
         do {
-            let sources = try await SimulatorSource.availableSources()
+            let sources: [any MirrorSource] =
+                kind == .device
+                ? try await DeviceSource.availableSources()
+                : try await SimulatorSource.availableSources()
             guard let first = sources.first else {
-                // Absence is normal, not a failure — booting one later works.
+                // Absence is normal, not a failure — booting a Simulator or
+                // plugging a phone in later should just work.
                 state = .noSource
                 return
             }
-            first.onStopped = { _ in
+            let onStopped: (MirrorError) -> Void = { _ in
                 Task { @MainActor in
                     self.source = nil
                     state = .disconnected
                 }
             }
+            (first as? SimulatorSource)?.onStopped = onStopped
+            (first as? DeviceSource)?.onStopped = onStopped
             let layer = try await first.start()
             source = first
             state = .mirroring(layer)
@@ -126,14 +152,14 @@ struct MirrorPane: View {
         source = nil
     }
 
-    private func openScreenRecordingSettings() {
-        // Screen Recording, not Camera. They are different panes and sending
-        // someone to the wrong one wastes their time at exactly the moment they
-        // are trying to present.
+    private func openPrivacySettings(for kind: MirrorSourceKind) {
+        // Screen Recording and Camera are different panes. Sending someone to
+        // the wrong one wastes their time at exactly the moment they are trying
+        // to present.
+        let anchor =
+            kind.needsScreenRecordingPermission ? "Privacy_ScreenCapture" : "Privacy_Camera"
         guard
-            let url = URL(
-                string:
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")
         else { return }
         NSWorkspace.shared.open(url)
     }
@@ -155,14 +181,17 @@ private enum MirrorState {
 /// point of ADR-0003's layer-vending protocol.
 private struct LayerHost: NSViewRepresentable {
     let layer: CALayer
+    let drawsChassis: Bool
 
     func makeNSView(context: Context) -> LayerHostView {
         let view = LayerHostView()
+        view.drawsChassis = drawsChassis
         view.mirrored = layer
         return view
     }
 
     func updateNSView(_ view: LayerHostView, context: Context) {
+        view.drawsChassis = drawsChassis
         view.mirrored = layer
     }
 }
@@ -174,11 +203,23 @@ private struct LayerHost: NSViewRepresentable {
 /// zero — the layer gets a 0x0 frame, and the pane shows solid black with no
 /// hint that frames are arriving perfectly well.
 final class LayerHostView: NSView {
+    /// Whether to draw a device body around the feed. True for a physical
+    /// device, whose feed is the bare screen; false for a Simulator, whose
+    /// window already includes its chassis.
+    var drawsChassis = false { didSet { needsLayout = true } }
+
+    /// Aspect of the incoming video, discovered from the layer once frames flow.
+    /// Falls back to a modern phone until then, so the first layout is close
+    /// rather than square.
+    var screenAspect: CGFloat = 1284.0 / 2778.0
+
+    private let chassis = CALayer()
+
     var mirrored: CALayer? {
         didSet {
             guard mirrored !== oldValue else { return }
             oldValue?.removeFromSuperlayer()
-            if let mirrored { layer?.addSublayer(mirrored) }
+            if let mirrored { chassis.addSublayer(mirrored) }
             needsLayout = true
         }
     }
@@ -187,7 +228,12 @@ final class LayerHostView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer = CALayer()
-        layer?.backgroundColor = NSColor.black.cgColor
+        // Neutral rather than black: the mirror should read as a device resting
+        // on a surface, not as a hole in the window.
+        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        chassis.backgroundColor = NSColor.black.cgColor
+        chassis.masksToBounds = true
+        layer?.addSublayer(chassis)
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -195,12 +241,36 @@ final class LayerHostView: NSView {
     override func layout() {
         super.layout()
         guard let mirrored else { return }
+
         // Implicit animation would make every resize a visible slide of the
         // mirrored screen.
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        mirrored.frame = bounds
-        CATransaction.commit()
+        defer { CATransaction.commit() }
+
+        guard drawsChassis else {
+            // Simulator: the captured window is the device, bezel included.
+            chassis.frame = bounds
+            chassis.cornerRadius = 0
+            chassis.backgroundColor = NSColor.clear.cgColor
+            mirrored.frame = chassis.bounds
+            mirrored.cornerRadius = 0
+            return
+        }
+
+        let body = DeviceChassis.chassisRect(screenAspect: screenAspect, in: bounds)
+        chassis.backgroundColor = NSColor.black.cgColor
+        chassis.frame = body
+        chassis.cornerRadius = DeviceChassis.cornerRadius(forChassis: body)
+
+        // screenRect is in the view's space; the mirrored layer is a child of
+        // the chassis, so it is offset into the chassis's own coordinates.
+        let screen = DeviceChassis.screenRect(inChassis: body)
+        mirrored.frame = CGRect(
+            x: screen.minX - body.minX, y: screen.minY - body.minY,
+            width: screen.width, height: screen.height)
+        mirrored.cornerRadius = DeviceChassis.screenCornerRadius(forChassis: body)
+        mirrored.masksToBounds = true
     }
 }
 
