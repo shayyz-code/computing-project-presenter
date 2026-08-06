@@ -157,7 +157,10 @@ struct ContentView: View {
 
     private func show(pdf: URL, deck: Deck?, source: URL) {
         do {
-            let loaded = try PDFSlideRenderer(url: pdf)
+            // Wrapped so advancing a slide is a cache hit rather than a fresh
+            // rasterisation. Spec 0001 asks for no visible delay after the first
+            // page, which a single-image cache could not deliver.
+            let loaded = CachingSlideRenderer(wrapping: try PDFSlideRenderer(url: pdf))
             renderer = loaded
             // Slide count comes from the deck when there is one: it is read from
             // the .pptx itself, which is authoritative over a converter's output.
