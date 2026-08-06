@@ -64,6 +64,10 @@ let advanced = nav.advance()
 
 **`MirrorSource` is `@MainActor`, not `Sendable`.** Every conformance vends a `CALayer`, and layers are main-thread bound; isolating the protocol keeps the layer from crossing an isolation boundary, which strict concurrency would otherwise reject.
 
+**A connected iPhone publishes three capture devices, and the screen is the least obvious one.** `Shayy Camera` and `Shayy Desk View Camera` are Continuity — the phone's *lens*. The screen device is bare `Shayy`, and its `modelID` is the literal string `iOS Device` while the **decoys** carry `iPhone14,3`. So `modelID.hasPrefix("iPhone")` picks exactly the wrong device and mirrors the room. All three report `.external`. The only correct test is `hasMediaType(.muxed) && !isContinuityCamera && deviceType != .deskViewCamera`.
+
+**The device arrives by notification, and a sleeping thread never sees it.** After setting `kCMIOHardwarePropertyAllowScreenCaptureDevices`, the device is published asynchronously via `AVCaptureDevice.wasConnectedNotification`. Waiting with `Thread.sleep` receives no CoreFoundation notifications and reports the device missing forever — this produced two false negatives during spike #22. Wait with `RunLoop.current.run(until:)`, retain one `DiscoverySession`, and treat absence as transient: publication is flaky for a few seconds after a previous capture session is released.
+
 **Screen Recording and Camera are different permissions.** Simulator and window capture go through ScreenCaptureKit (Screen Recording); physical device capture goes through AVFoundation (Camera). `MirrorSourceKind.needsScreenRecordingPermission` encodes this — getting it backwards sends the user to the wrong System Settings pane. A denied permission must produce an explaining UI state, never a blank pane.
 
 ## What CI can and cannot run
@@ -82,9 +86,7 @@ Decisions live in `docs/adr/` and acceptance criteria in `docs/specs/`. If you a
 
 ## Current state
 
-M0 (foundations) only. `SlideKit` and `MirrorKit` contain declarations and no implementations — no deck loader and no capture backend exist yet. Two spikes are deliberately unresolved and gate their milestones:
+M0 (foundations) only. `SlideKit` and `MirrorKit` contain declarations and no implementations — no deck loader and no capture backend exist yet.
 
-- **CoreMediaIO** — whether an unentitled app still sees a USB iPhone as an `AVCaptureDevice` on macOS 27. Decides whether `DeviceSource` is real or falls back to capturing a QuickTime Player window. See `docs/adr/0003-mirroring-strategy.md`.
-- **Keynote export** — whether the ScriptingBridge path works and at what fidelity. Decides the `.pptx` story. See `docs/adr/0002-deck-rendering.md`.
-
-Do not build on either assumption until its spike is resolved.
+- **CoreMediaIO — resolved.** An unentitled app *does* see a USB iPhone as an `AVCaptureDevice` on macOS 27: 13–40 fps at device-native resolution, no entitlement needed. `DeviceSource` is real. Constraints and measurements in `docs/adr/0003-mirroring-strategy.md`; probe in `Spikes/22-coremediaio/`.
+- **Keynote export — open.** Whether the ScriptingBridge path works and at what fidelity. Decides the `.pptx` story. See `docs/adr/0002-deck-rendering.md`. Do not build on it until the spike resolves.
