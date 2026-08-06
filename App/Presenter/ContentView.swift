@@ -21,6 +21,12 @@ struct ContentView: View {
     /// override, so presenting never rewrites this.
     @AppStorage("showsNotes") private var showsNotesWindowed = true
     @State private var presentation = PresentationController(showsNotesWindowed: true)
+    /// Catches space and page up/down — the aliases a presenter and a remote use
+    /// that are not menu shortcuts. Routed through the same command type.
+    @State private var keyboard = KeyboardNavigation { command in
+        NotificationCenter.default.post(
+            name: .navigateRequested, object: nil, userInfo: ["command": command.rawValue])
+    }
 
     var body: some View {
         HSplitView {
@@ -84,6 +90,14 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .togglePresentationRequested)) { _ in
             presentation.toggleFullscreen()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateRequested)) { note in
+            guard let raw = note.userInfo?["command"] as? String,
+                let command = NavigationCommand(rawValue: raw)
+            else { return }
+            navigate(command)
+        }
+        .onAppear { keyboard.start() }
+        .onDisappear { keyboard.stop() }
         // Keep the persisted preference in step with the windowed setting, in
         // whichever direction it changed.
         .onChange(of: presentation.mode.showsNotesWindowed) { _, new in
@@ -91,6 +105,17 @@ struct ContentView: View {
         }
         .onAppear {
             presentation.mode.showsNotesWindowed = showsNotesWindowed
+        }
+    }
+
+    /// The one place a navigation command is applied, so the menu and the key
+    /// monitor cannot behave differently.
+    private func navigate(_ command: NavigationCommand) {
+        // A jump lands on a slide the presenter has not seen, so arriving
+        // magnified into its corner would be disorienting. Stepping keeps zoom;
+        // SlidePane already resets that per slide change.
+        if command.apply(to: &navigator), command.isJump {
+            slideView.reset()
         }
     }
 
@@ -191,6 +216,7 @@ extension Notification.Name {
     static let openDeckRequested = Notification.Name("openDeckRequested")
     static let toggleNotesRequested = Notification.Name("toggleNotesRequested")
     static let togglePresentationRequested = Notification.Name("togglePresentationRequested")
+    static let navigateRequested = Notification.Name("navigateRequested")
 }
 
 /// An empty pane: what it is, why it is empty, and an optional way out of that.
