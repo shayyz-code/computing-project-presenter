@@ -53,7 +53,11 @@ docs/{adr,specs}/
 
 **PPTX slide order is not filename order.** It comes from `<p:sldIdLst>` in `ppt/presentation.xml`, resolved through `ppt/_rels/presentation.xml.rels`. Sorting `slide1.xml`, `slide2.xml`, … gives the wrong deck for any file where slides were reordered.
 
-**PPTX notes are not mapped positionally.** `notesSlide1.xml` is not slide 1's notes as soon as any slide lacks notes. Resolve through each `ppt/slides/_rels/slideN.xml.rels`. `Deck` therefore keys slides by an author-facing `number`, never by array offset.
+**PPTX notes are not mapped positionally.** `notesSlide1.xml` is not slide 1's notes as soon as any slide lacks notes. Resolve through each `ppt/slides/_rels/slideN.xml.rels`. `Deck` therefore keys slides by an author-facing `number`, never by array offset. Real numbers: one 53-slide deck had notes on 9 slides, with `notesSlide3.xml` belonging to slide 9.
+
+**Not every zip entry in a `.pptx` is deflated.** A survey of 61 real decks found 1219 STORED entries alongside 8311 DEFLATE — and 82 of the STORED ones were `.xml`, the parts a reader actually fetches. `ZipArchive` switches on the compression method; an inflate-only reader returns garbage for those and reports no error.
+
+**A PPTX fixture whose rIds sort into author order tests nothing.** `<p:sldId r:id="…">` cites relationship ids, and PowerPoint never renumbers them on reorder, so real rId order is arbitrary. If a fixture uses `rId1, rId2, rId3` in author order, a reader that sorts instead of honouring document order still passes. `Tests/SlideKitTests/Fixtures/make-fixtures.py` uses deliberately shuffled ids; verify a fixture can fail before trusting that it passes.
 
 **Keynote will not open a file handed to it over Apple Events.** Keynote is sandboxed, and a bare POSIX path in `tell application "Keynote" to open POSIX file "…"` carries no sandbox extension token — Keynote raises a modal *"can't be imported. The file couldn't be opened."* and **the AppleEvent times out instead of returning an error**, so a naive caller hangs for its full timeout with only `-1712` to show. Open with `NSWorkspace.open` (LaunchServices passes the token), then use Apple Events only to export. Backgrounded (`open -g`) it does not steal focus. Probe in `Spikes/16-keynote/`.
 
