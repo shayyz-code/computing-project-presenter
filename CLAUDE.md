@@ -55,6 +55,10 @@ docs/{adr,specs}/
 
 **PPTX notes are not mapped positionally.** `notesSlide1.xml` is not slide 1's notes as soon as any slide lacks notes. Resolve through each `ppt/slides/_rels/slideN.xml.rels`. `Deck` therefore keys slides by an author-facing `number`, never by array offset.
 
+**Keynote will not open a file handed to it over Apple Events.** Keynote is sandboxed, and a bare POSIX path in `tell application "Keynote" to open POSIX file "…"` carries no sandbox extension token — Keynote raises a modal *"can't be imported. The file couldn't be opened."* and **the AppleEvent times out instead of returning an error**, so a naive caller hangs for its full timeout with only `-1712` to show. Open with `NSWorkspace.open` (LaunchServices passes the token), then use Apple Events only to export. Backgrounded (`open -g`) it does not steal focus. Probe in `Spikes/16-keynote/`.
+
+**When Apple Events times out, look at what the app is showing.** Keynote reports nothing to the script while a modal is up. Read the dialog out of the accessibility tree — `System Events` → `every window whose subrole is "AXDialog"` → its `static text` — before concluding the operation is unsupported.
+
 **`#expect` cannot contain a mutating call.** The macro expands its argument into a closure over an immutable binding, so `#expect(nav.advance())` fails to compile with "cannot use mutating member on immutable value". Bind the result first:
 
 ```swift
@@ -88,5 +92,9 @@ Decisions live in `docs/adr/` and acceptance criteria in `docs/specs/`. If you a
 
 M0 (foundations) only. `SlideKit` and `MirrorKit` contain declarations and no implementations — no deck loader and no capture backend exist yet.
 
-- **CoreMediaIO — resolved.** An unentitled app *does* see a USB iPhone as an `AVCaptureDevice` on macOS 27: 13–40 fps at device-native resolution, no entitlement needed. `DeviceSource` is real. Constraints and measurements in `docs/adr/0003-mirroring-strategy.md`; probe in `Spikes/22-coremediaio/`.
-- **Keynote export — open.** Whether the ScriptingBridge path works and at what fidelity. Decides the `.pptx` story. See `docs/adr/0002-deck-rendering.md`. Do not build on it until the spike resolves.
+**Both spikes are resolved and every ADR is Accepted**, so M1 and M2 can be built as designed.
+
+- **CoreMediaIO.** An unentitled app *does* see a USB iPhone as an `AVCaptureDevice` on macOS 27: 13–40 fps at device-native resolution, no private entitlement needed. `DeviceSource` is real. Measurements and the three implementation constraints are in `docs/adr/0003-mirroring-strategy.md`; probe in `Spikes/22-coremediaio/`.
+- **Keynote export.** Works, at exact slide counts and comparable speed to LibreOffice, provided the file is opened through LaunchServices rather than Apple Events. LibreOffice stays first in the chain because Keynote ignores fonts embedded in the `.pptx` and substitutes, which reflows text out of its shape. See `docs/adr/0002-deck-rendering.md`; probe in `Spikes/16-keynote/`.
+
+Both were verified against a signed-app TCC subject **only by proxy** — consent was granted to the terminal, not to `Presenter.app`. Re-verify camera and Apple Events against a Developer ID, hardened-runtime build before M4 ships.
