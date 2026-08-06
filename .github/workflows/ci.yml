@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Pure-logic tests only. Capture tests need TCC grants and a GUI session;
+  # converter tests need soffice or Keynote automation consent. Neither exists
+  # on a runner, so those are tagged and excluded rather than papered over —
+  # they get verified by hand against real hardware. See CLAUDE.md.
+  test:
+    name: Lint and test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions
+        run: |
+          swift --version
+          swift format --version
+          xcodebuild -version
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+  build:
+    name: Build app
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      # Unsigned: notarization needs an Apple Developer account, and
+      # contributors without one still need to be able to build. See
+      # docs/adr/0005-distribution.md.
+      - name: Build
+        run: make build
