@@ -45,11 +45,17 @@ Resolved. Setting `kCMIOHardwarePropertyAllowScreenCaptureDevices` **still works
 | | |
 |---|---|
 | Appears after | 0.6 – 2.3 s |
-| Frame rate | 13 – 40 fps |
+| Frame rate | 13 – 40 fps over 3 s windows |
 | Resolution | 1284x2778 (device native) |
-| Entitlement required | **none** |
+| Private entitlement required | **none** |
 
-**No entitlement is required.** That is the finding that decided shippability — QuickTime Player holds no CoreMediaIO or DAL entitlement either; its only temporary exceptions are FairPlay/DRM.
+**No private entitlement and no special API.** That is the finding that decided shippability — QuickTime Player holds no CoreMediaIO or DAL entitlement either; its only temporary exceptions are FairPlay/DRM. There is no key Apple has and we do not.
+
+**This is not the same as "no entitlement".** The probe was a `swiftc` binary with no `Info.plist` and, critically, **no hardened runtime** — `make build` ad-hoc signs and disables it, so local builds cannot detect the difference. The shipping app runs Developer ID + hardened runtime (ADR-0005), which gates camera access behind `com.apple.security.device.camera`; the DAL device is an `AVCaptureDevice` and is subject to that gate.
+
+The app is already configured for it — `Presenter.entitlements` declares the camera entitlement, `ENABLE_HARDENED_RUNTIME = YES` in both configs, and `NSCameraUsageDescription` is set. **Still unverified against a signed, hardened-runtime Release build**, and that verification belongs in M4 before notarization rather than at the end of it.
+
+The frame-rate spread is a sampling artifact as much as a real range: 3-second windows under-report, and the low readings clustered in runs started immediately after a previous session released the device. Spec 0002 therefore sets its floor over a 10-second window.
 
 Reproduce with `Spikes/22-coremediaio/probe.swift`.
 
@@ -75,8 +81,8 @@ device.hasMediaType(.muxed) && !device.isContinuityCamera && device.deviceType !
 
 `DeviceSource` **must observe, not enumerate once.** Three constraints, all measured:
 
-- The device arrives by notification (`AVCaptureDevice.wasConnectedNotification`) after the property is set — not synchronously. A one-shot enumeration is a race.
-- The wait must service a run loop. A `Thread.sleep` loop receives no CoreFoundation notifications and never sees the device. This produced two false negatives during the spike before it was caught.
+- The device arrives 0.6–2.3 s after the property is set, not synchronously. A one-shot enumeration is a race — it sometimes wins, which is worse than always failing.
+- For determinism, observe `AVCaptureDevice.wasConnectedNotification` with a serviced run loop. Sleep-then-poll does work (`DiscoverySession.devices` is a fresh query, not a notification delivery) but only by out-waiting the arrival window, and a fixed sleep tuned on one machine is a race on another.
 - Publication is **intermittent immediately after a previous capture session is released** — 2/3 back-to-back runs succeeded, 3/3 with an 8 s gap. Absence must be a transient, retryable state, never a permanent "no device" verdict.
 
 Preconditions: wired, paired **and trusted**, unlocked. Note `devicectl`'s `Pairing State: paired` does **not** reflect the trust state screen capture needs — it read `paired` while capture was still unavailable.
