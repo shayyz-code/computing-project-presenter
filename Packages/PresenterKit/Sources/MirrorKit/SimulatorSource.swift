@@ -170,6 +170,22 @@ private final class StreamOutput: NSObject, SCStreamOutput, SCStreamDelegate, @u
             let status = SCFrameStatus(rawValue: raw), status == .complete
         else { return }
 
+        // Mark the frame for immediate display. Without this the renderer waits
+        // on a control timebase that was never set, so buffers are accepted and
+        // then never presented -- the pane stays black while capture is working
+        // perfectly. Setting a timebase is the alternative; for a live mirror
+        // there is nothing to synchronise against, so immediate is both simpler
+        // and more correct.
+        if let attachments = CMSampleBufferGetSampleAttachmentsArray(
+            sampleBuffer, createIfNecessary: true) as? [CFMutableDictionary],
+            let first = attachments.first
+        {
+            CFDictionarySetValue(
+                first,
+                Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
+        }
+
         if layer.sampleBufferRenderer.status == .failed {
             layer.sampleBufferRenderer.flush()
         }

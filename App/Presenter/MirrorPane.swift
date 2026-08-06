@@ -9,29 +9,33 @@ import SwiftUI
 /// live list updates is #24.
 struct MirrorPane: View {
     @State private var source: SimulatorSource?
-    @State private var layer: CALayer?
     @State private var state: MirrorState = .idle
 
     var body: some View {
         Group {
             switch state {
-            case .idle, .searching:
+            case .idle:
                 MirrorMessage(
-                    symbol: "iphone.gen3",
-                    title: "Device",
-                    detail: state == .searching ? "Looking for a Simulator…" : "No source selected"
+                    symbol: "iphone.gen3", title: "Device", detail: "No source selected"
                 ) {
                     Button("Mirror Simulator") { Task { await connect() } }
                         .buttonStyle(.glassProminent)
                         .controlSize(.large)
                 }
 
-            case .mirroring:
-                if let layer {
-                    LayerHost(layer: layer)
-                } else {
-                    ProgressView()
+            case .searching:
+                MirrorMessage(
+                    symbol: "iphone.gen3", title: "Device", detail: "Looking for a Simulator…"
+                ) {
+                    ProgressView().controlSize(.small)
                 }
+
+            case .mirroring(let layer):
+                // The layer travels in the case rather than beside it. Holding
+                // it separately let `.mirroring` coexist with a nil layer, which
+                // rendered as a bare spinner with no way out — and `onDisappear`
+                // firing spuriously was enough to cause it.
+                LayerHost(layer: layer)
 
             case .noSource:
                 MirrorMessage(
@@ -79,7 +83,10 @@ struct MirrorPane: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDisappear { Task { await disconnect() } }
+        // Deliberately no `.onDisappear` teardown. SwiftUI fires it for
+        // transient reasons — a modal appearing was enough — and tearing the
+        // stream down there stopped the mirror without telling anyone.
+        // The pane lives as long as the window; the window closing releases it.
     }
 
     private func connect() async {
@@ -95,14 +102,13 @@ struct MirrorPane: View {
             }
             first.onStopped = { _ in
                 Task { @MainActor in
-                    self.layer = nil
                     self.source = nil
                     state = .disconnected
                 }
             }
-            layer = try await first.start()
+            let layer = try await first.start()
             source = first
-            state = .mirroring
+            state = .mirroring(layer)
         } catch let error as MirrorError {
             switch error {
             case .permissionDenied: state = .denied
@@ -118,7 +124,6 @@ struct MirrorPane: View {
     private func disconnect() async {
         await source?.stop()
         source = nil
-        layer = nil
     }
 
     private func openScreenRecordingSettings() {
@@ -134,10 +139,12 @@ struct MirrorPane: View {
     }
 }
 
-private enum MirrorState: Equatable {
+/// Not `Equatable`: `.mirroring` carries a `CALayer`, and identity comparison
+/// of layers is not what any caller wants.
+private enum MirrorState {
     case idle
     case searching
-    case mirroring
+    case mirroring(CALayer)
     case noSource
     case denied
     case failed(String)
@@ -149,25 +156,50 @@ private enum MirrorState: Equatable {
 private struct LayerHost: NSViewRepresentable {
     let layer: CALayer
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        view.wantsLayer = true
-        view.layer = CALayer()
-        view.layer?.backgroundColor = NSColor.black.cgColor
+    func makeNSView(context: Context) -> LayerHostView {
+        let view = LayerHostView()
+        view.mirrored = layer
         return view
     }
 
-    func updateNSView(_ view: NSView, context: Context) {
-        guard let host = view.layer else { return }
-        if layer.superlayer !== host {
-            host.sublayers?.forEach { $0.removeFromSuperlayer() }
-            host.addSublayer(layer)
+    func updateNSView(_ view: LayerHostView, context: Context) {
+        view.mirrored = layer
+    }
+}
+
+/// Hosts the mirrored layer and keeps it the size of the view.
+///
+/// Sizing has to happen in `layout()`, not in `updateNSView`. SwiftUI runs
+/// `updateNSView` before AppKit has laid the view out, so the bounds are still
+/// zero — the layer gets a 0x0 frame, and the pane shows solid black with no
+/// hint that frames are arriving perfectly well.
+final class LayerHostView: NSView {
+    var mirrored: CALayer? {
+        didSet {
+            guard mirrored !== oldValue else { return }
+            oldValue?.removeFromSuperlayer()
+            if let mirrored { layer?.addSublayer(mirrored) }
+            needsLayout = true
         }
+    }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer = CALayer()
+        layer?.backgroundColor = NSColor.black.cgColor
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func layout() {
+        super.layout()
+        guard let mirrored else { return }
         // Implicit animation would make every resize a visible slide of the
         // mirrored screen.
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        layer.frame = host.bounds
+        mirrored.frame = bounds
         CATransaction.commit()
     }
 }
