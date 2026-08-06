@@ -42,8 +42,8 @@ A Simulator shutting down or a cable being pulled mid-presentation surfaces `sou
 ## Acceptance criteria
 
 - [ ] A booted Simulator appears in the source list within ~2s of booting
-- [ ] Selecting it shows live video at ≥ 20 fps
-- [ ] A USB-connected iPhone appears within ~3s of the property being set and mirrors live at ≥ 13 fps
+- [ ] Selecting it shows live video at ≥ 20 fps averaged over 10 s
+- [ ] A USB-connected iPhone appears within ~3s of the property being set and mirrors live at ≥ 20 fps averaged over 10 s
 - [ ] The source list offers the phone's **screen**, never its Continuity camera or Desk View
 - [ ] A device that does not appear shows a retrying state, not a permanent "no device" — publication is intermittent after a previous session
 - [ ] Rotating the device updates the image without restarting capture

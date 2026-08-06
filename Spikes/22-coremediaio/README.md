@@ -20,7 +20,7 @@ Needs an iPhone **wired, paired, trusted and unlocked**. It is excluded from `ma
 
 Three earlier versions of this probe produced **false negatives**, each from a different defect. If you modify it, preserve these:
 
-1. **The wait services a run loop.** `RunLoop.current.run(until:)`, never `Thread.sleep`. The device arrives by `wasConnectedNotification`; a sleeping thread receives no CoreFoundation notifications and will report the device missing forever.
+1. **The wait services a run loop.** `RunLoop.current.run(until:)` rather than `Thread.sleep`, plus an explicit `wasConnectedNotification` observer. The device arrives 0.6–2.3 s after the property is set, so a fixed sleep followed by one enumeration is a race — it does sometimes succeed, which is precisely what made the failures look like platform behaviour rather than a timing bug.
 2. **One `DiscoverySession` is retained across the whole wait.** Constructing a fresh one per poll iteration discards observation state.
 3. **The device is identified by media type, not by name or model.** `hasMediaType(.muxed) && !isContinuityCamera`. A connected iPhone publishes three devices and the screen one is the *least* obvious — see the table in ADR-0003, where `modelID` is inverted from what anyone would guess.
 
