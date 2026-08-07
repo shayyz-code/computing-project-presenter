@@ -39,6 +39,16 @@ public final class SimulatorSource: MirrorSource {
     /// an error, and booting one later should just start working. Only a genuine
     /// failure (notably denied consent) throws.
     public static func availableSources() async throws -> [SimulatorSource] {
+        let capturable = try await capturableWindows()
+        return SimulatorWindows.devices(in: capturable).map(SimulatorSource.init(window:))
+    }
+
+    /// Every on-system window, as value types.
+    ///
+    /// Split out so `SourceDiscovery` can build a pickable list without
+    /// constructing sources — listing must not start capture, or drawing the
+    /// menu would unhide every Simulator.
+    public static func capturableWindows() async throws -> [CapturableWindow] {
         let content: SCShareableContent
         do {
             // onScreenWindowsOnly: false is deliberate and load-bearing. With
@@ -55,7 +65,7 @@ public final class SimulatorSource: MirrorSource {
             throw MirrorError.from(error, kind: .simulator)
         }
 
-        let capturable = content.windows.map {
+        return content.windows.map {
             CapturableWindow(
                 id: $0.windowID,
                 title: $0.title,
@@ -63,7 +73,6 @@ public final class SimulatorSource: MirrorSource {
                 width: Int($0.frame.width),
                 height: Int($0.frame.height))
         }
-        return SimulatorWindows.devices(in: capturable).map(SimulatorSource.init(window:))
     }
 
     public func start() async throws -> CALayer {

@@ -87,6 +87,14 @@ device.hasMediaType(.muxed) && !device.isContinuityCamera && device.deviceType !
 
 Preconditions: wired, paired **and trusted**, unlocked. Note `devicectl`'s `Pairing State: paired` does **not** reflect the trust state screen capture needs — it read `paired` while capture was still unavailable.
 
+## The window picker avoids a consent prompt that a hand-built filter triggers
+
+Measured on macOS 26: constructing an `SCContentFilter` directly and starting a stream raises an extra system prompt — *"Presenter is requesting to bypass the system private window picker and directly access your screen and audio"* — on top of the Screen Recording grant. `SCContentSharingPicker` is the sanctioned path and raises no such prompt.
+
+`SimulatorSource` still builds its filter directly, deliberately: making a presenter choose their Simulator from a system sheet on every connect is worse than one extra grant taken once. `WindowSource` uses the picker, where choosing is the point anyway.
+
+Worth knowing before M4: that prompt reappears when macOS re-asks for capture consent, and a dialog of that wording appearing mid-presentation is exactly the failure this app exists to avoid.
+
 ## When the device will not come up
 
 Retained deliberately, re-scoped. This is no longer "if the path is closed" — the path is open — but the preconditions above are all things a user can get wrong, and the intermittency is real.
