@@ -69,7 +69,7 @@ A Simulator shutting down or a cable being pulled mid-presentation surfaces `sou
 
 ## Acceptance criteria
 
-Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026-08-07 — [#71](https://github.com/shayyz-code/sidecar/issues/71). **6 of 13 verified, 1 failing, 6 open.** A box is ticked only where something was *observed*; where a run produced no verdict it says so, because an untested criterion that reads as passing is worse than one that reads as failing.
+Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026-08-07 — [#71](https://github.com/shayyz-code/sidecar/issues/71). **7 of 13 verified, 1 failing, 5 open.** A box is ticked only where something was *observed*; where a run produced no verdict it says so, because an untested criterion that reads as passing is worse than one that reads as failing.
 
 - [ ] A booted Simulator appears in the source list within ~2s of booting
 - [x] Selecting it shows live video at ≥ 20 fps averaged over 10 s — **38.1 fps**. Recorded the mirror pane at 60 fps under synthetic motion and counted non-duplicate frames with `ffmpeg mpdecimate`; 381 distinct frames in 10 s. Motion is required: ScreenCaptureKit delivers on change, so a still home screen legitimately produces almost none
@@ -81,7 +81,8 @@ Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026
 - [ ] Denying Screen Recording shows an explaining state with a working Settings link
 - [x] Denying Camera does the same, pointing at the **Camera** pane — reached by signing a hardened build *without* `com.apple.security.device.camera`, which is the only way to produce a denial without revoking a real grant
 - [x] Shutting down a mirrored Simulator shows a reconnect state, not a frozen frame — **"Simulator disconnected · The Simulator stopped or quit"** with a Reconnect button. The last frame was cleared, not left standing
-- [ ] Unplugging a mirrored device does the same — **not observed.** It is the same `case .disconnected` branch with a different string (`MirrorPane.swift:65-67`), but reading the branch is not watching it. Needs a device mirroring at the moment the cable is pulled
+- [x] Unplugging a mirrored device does the same — a reconnect state with no frozen frame, **but it named the wrong device**: *"Simulator disconnected · The Simulator stopped or quit"*, with no Simulator booted and `Simulator.app` not running. `.disconnected` hardcoded the Simulator wording while every neighbouring state branched on `lastKind`. Fixed in [#84](https://github.com/shayyz-code/sidecar/issues/84); the corrected device string is not yet observed on screen
+  > Worth keeping as a method note. This line previously read *"the same branch with a different string — reading the branch is not watching it."* The first half was wrong: there was no different string. The second half is why the bug was found anyway.
 - [ ] `stop()` releases the stream — no capture indicator persists after switching sources. **Not measurable by screenshot**: taking one lights the indicator itself
 - [ ] **FAILS** — switching sources ten times leaks neither memory nor capture sessions. Memory is clean (rss bounded and non-monotonic across 30 switches, `leaks` flat at 64 bytes). Capture sessions are not: after ~30 switches `SimulatorSource` stops producing frames and never recovers without restarting the app. [#81](https://github.com/shayyz-code/sidecar/issues/81)
 
