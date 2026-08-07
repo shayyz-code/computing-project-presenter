@@ -21,6 +21,9 @@ public final class SimulatorSource: MirrorSource {
     private var stream: SCStream?
     private var layer: AVSampleBufferDisplayLayer?
     private var output: StreamOutput?
+    /// Watches for the mirrored window changing shape, which is what a device
+    /// rotation looks like from out here.
+    private var rotationWatch: Task<Void, Never>?
 
     /// Called when capture stops on its own — the Simulator quit, or the system
     /// stopped the stream. The pane needs this to show a reconnect state rather
@@ -161,7 +164,57 @@ public final class SimulatorSource: MirrorSource {
         self.stream = stream
         self.output = output
         self.layer = displayLayer
+        startWatchingForRotation(configuration: configuration)
         return displayLayer
+    }
+
+    /// Follows a rotation by reconfiguring the running stream.
+    ///
+    /// `updateConfiguration` rather than stop-and-start: restarting drops frames,
+    /// re-triggers the capture indicator, and would make a rotation look like a
+    /// reconnection to anyone watching.
+    ///
+    /// Polled, because there is nothing to observe — `SCShareableContent`
+    /// publishes no notification when a window resizes. One second is well under
+    /// what a rotation takes to notice.
+    private func startWatchingForRotation(configuration: SCStreamConfiguration) {
+        rotationWatch?.cancel()
+        var configured = CGSize(width: configuration.width, height: configuration.height)
+
+        rotationWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, let stream = self.stream else { return }
+
+                guard let windows = try? await Self.capturableWindows(),
+                    let window = windows.first(where: { $0.id == self.windowID })
+                else { continue }
+
+                let wanted = CGSize(width: window.width * 2, height: window.height * 2)
+                guard wanted != configured, wanted.width > 0, wanted.height > 0 else { continue }
+
+                let updated = SCStreamConfiguration()
+                updated.width = Int(wanted.width)
+                updated.height = Int(wanted.height)
+                updated.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+                updated.queueDepth = 5
+                updated.showsCursor = false
+                updated.pixelFormat = kCVPixelFormatType_32BGRA
+                // Same chrome crop as at start, recomputed for the new shape:
+                // a rotated window is a different height, so a remembered inset
+                // would crop into the device.
+                let chrome = Self.chromeHeight(forWindowHeight: CGFloat(window.height))
+                if chrome > 0 {
+                    updated.sourceRect = CGRect(
+                        x: 0, y: chrome, width: CGFloat(window.width),
+                        height: CGFloat(window.height) - chrome)
+                    updated.height = Int((CGFloat(window.height) - chrome) * 2)
+                }
+
+                try? await stream.updateConfiguration(updated)
+                configured = CGSize(width: updated.width, height: updated.height)
+            }
+        }
     }
 
     /// Long enough for a slow first frame, short enough that a black pane is
@@ -176,7 +229,12 @@ public final class SimulatorSource: MirrorSource {
     /// clamped so an unusual window (a landscape iPad, say) can never have its
     /// content cropped into.
     static func windowChromeHeight(for window: SCWindow) -> CGFloat {
-        let height = window.frame.height
+        chromeHeight(forWindowHeight: window.frame.height)
+    }
+
+    /// One calculation, shared by the initial configuration and by rotation, so
+    /// the two cannot disagree about where the device starts.
+    static func chromeHeight(forWindowHeight height: CGFloat) -> CGFloat {
         guard height > 0 else { return 0 }
         // ~52pt on the measured iPhone 17 window (435x929).
         return min(height * 0.06, 60)
@@ -199,6 +257,8 @@ public final class SimulatorSource: MirrorSource {
     }
 
     public func stop() async {
+        rotationWatch?.cancel()
+        rotationWatch = nil
         // Order matters: stop the stream before dropping the layer, or the macOS
         // capture indicator lingers after the source is switched away — which
         // users read as the app still watching their screen.
@@ -211,6 +271,8 @@ public final class SimulatorSource: MirrorSource {
     }
 
     private func handleStreamStopped(_ error: MirrorError) {
+        rotationWatch?.cancel()
+        rotationWatch = nil
         stream = nil
         output = nil
         layer = nil

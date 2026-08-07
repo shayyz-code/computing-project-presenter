@@ -38,17 +38,24 @@ public enum SimulatorWindows {
     /// `Simulator.app`, whose bundle id is the constant below.
     public static let bundleIdentifier = "com.apple.iphonesimulator"
 
+    /// Simulator windows that are not a device screen.
+    ///
+    /// These are titled and non-zero, so size and emptiness checks let them
+    /// through. Observed on macOS 26 alongside a booted iPhone 17.
+    static let auxiliaryWindowTitles: Set<String> = ["Apple TV Remote"]
+
     /// Every Simulator device window in `windows`, largest first.
     ///
     /// Largest first because the Simulator also owns small helper windows and
     /// the device is the big one; with several simulators booted, all of them
     /// are returned so #24 can list them.
     ///
-    /// Known limitation: the Simulator's **"Apple TV Remote"** companion window
-    /// is titled and non-zero, so it survives this filter and appears as a
-    /// source. Ordering by area keeps the real device first — measured 435x929
-    /// against the remote's 155x515 — so taking the first is correct today. A
-    /// real source list (#24) needs a better discriminator than size.
+    /// The Simulator's companion windows are excluded by title. Ordering by
+    /// area used to be enough, because a caller taking the first got the real
+    /// device — but a *picker* shows every entry, and "Apple TV Remote" beside
+    /// "iPhone 17" is a confusing thing to offer. Matching on title is fragile
+    /// if Apple renames them, which is why the failure mode is a stray extra
+    /// entry rather than a missing device.
     public static func devices(in windows: [CapturableWindow]) -> [CapturableWindow] {
         windows
             .filter { $0.bundleIdentifier == bundleIdentifier }
@@ -57,6 +64,7 @@ public enum SimulatorWindows {
             // capture failure.
             .filter { $0.width > 0 && $0.height > 0 }
             .filter { !($0.title ?? "").isEmpty }
+            .filter { !auxiliaryWindowTitles.contains($0.title ?? "") }
             .sorted { $0.width * $0.height > $1.width * $1.height }
     }
 

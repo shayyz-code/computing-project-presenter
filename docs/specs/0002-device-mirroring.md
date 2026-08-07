@@ -34,6 +34,10 @@ A source's `id` must survive it disappearing and returning, because a selection 
 
 Discovery **polls**, roughly every two seconds. There is nothing to observe: `SCShareableContent` publishes no change notification, and `AVCaptureDevice.wasConnectedNotification` covers only the device half of the list.
 
+### Rotation
+
+A rotation is reconfigured, not restarted: `SCStream.updateConfiguration` keeps the stream alive, where a stop-and-start would drop frames, re-trigger the capture indicator and look like a reconnection. Detected by polling the window's shape, because no notification exists for a window resizing.
+
 ### Device framing
 
 The Simulator window **includes the device chassis** — the iPhone 17 window is 435x929 around a smaller screen — so capturing the window gives the wrapped-device look for free, and the pane only has to avoid stretching it.

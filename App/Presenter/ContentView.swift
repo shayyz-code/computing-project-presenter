@@ -25,6 +25,9 @@ struct ContentView: View {
     /// Set when a remembered deck is no longer on disk, so the empty state can
     /// name it instead of starting blank with no explanation.
     @State private var missingDeckPath: String?
+    /// The mirror source used last time. Restored so the picker can mark it,
+    /// never so it can connect on its own.
+    @State private var rememberedSourceID: String?
     /// The file the current deck came from, for saving the session.
     @State private var deckURL: URL?
     /// The uncached renderer, so the thumbnail strip can wrap it in a cache of
@@ -83,16 +86,22 @@ struct ContentView: View {
                         .controlSize(.large)
                 }
             }
-            MirrorPane()
-                // Capped, so the deck gets the space. A phone is tall and
-                // narrow — at a typical window height it needs about 350pt to
-                // fill vertically, and past ~480 the extra width is letterbox
-                // rather than phone, because the layer is aspect-fitted.
-                // Without a cap, HSplitView hands the slide pane its bare
-                // minimum and gives everything else here: the primary content
-                // ends up the smallest thing on screen, worst of all in
-                // fullscreen where the deck should dominate.
-                .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
+            MirrorPane(
+                rememberedSourceID: rememberedSourceID,
+                onSourceChanged: { id in
+                    rememberedSourceID = id
+                    saveSession()
+                }
+            )
+            // Capped, so the deck gets the space. A phone is tall and
+            // narrow — at a typical window height it needs about 350pt to
+            // fill vertically, and past ~480 the extra width is letterbox
+            // rather than phone, because the layer is aspect-fitted.
+            // Without a cap, HSplitView hands the slide pane its bare
+            // minimum and gives everything else here: the primary content
+            // ends up the smallest thing on screen, worst of all in
+            // fullscreen where the deck should dominate.
+            .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
         }
         // Relaxed while presenting: a minimum wider than a small external
         // display would fight the layout rather than protect it.
@@ -159,14 +168,16 @@ struct ContentView: View {
         case .nothingToRestore:
             break
 
-        case .deckMissing(let path, let showsNotes, _):
+        case .deckMissing(let path, let showsNotes, let sourceID):
+            rememberedSourceID = sourceID
             // Restore what still applies and say which file is gone. Starting
             // blank with no explanation would leave the user guessing.
             presentation.mode.showsNotesWindowed = showsNotes
             missingDeckPath = path
 
-        case .restore(let url, let position, let showsNotes, _):
+        case .restore(let url, let position, let showsNotes, let sourceID):
             presentation.mode.showsNotesWindowed = showsNotes
+            rememberedSourceID = sourceID
             // The mirror source is deliberately not reconnected: doing so would
             // unhide the Simulator uninvited and could fire a permission prompt
             // before the user had done anything.
@@ -180,7 +191,7 @@ struct ContentView: View {
                 deckPath: deckURL?.path,
                 slidePosition: navigator.position,
                 showsNotes: presentation.mode.showsNotesWindowed,
-                mirrorSourceID: nil))
+                mirrorSourceID: rememberedSourceID))
     }
 
     /// The one place a navigation command is applied, so the menu and the key

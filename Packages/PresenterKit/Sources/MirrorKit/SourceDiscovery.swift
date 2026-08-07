@@ -158,4 +158,33 @@ public final class SourceDiscovery {
         monitor?.cancel()
         monitor = nil
     }
+
+    /// Builds a connectable source from a pickable one.
+    ///
+    /// Lives here rather than in the view so the mapping from descriptor to
+    /// backend is stated once. A descriptor whose source has gone away since the
+    /// list was drawn reports `sourceDisappeared` rather than returning
+    /// something that cannot start.
+    public func makeSource(for descriptor: MirrorSourceDescriptor) async throws -> any MirrorSource {
+        switch descriptor.kind {
+        case .window:
+            return WindowSource()
+
+        case .simulator:
+            let sources = try await SimulatorSource.availableSources()
+            guard
+                let match = sources.first(where: {
+                    SourceCatalogue.identifier(forSimulatorNamed: $0.displayName) == descriptor.id
+                })
+            else { throw MirrorError.sourceDisappeared(id: descriptor.id) }
+            return match
+
+        case .device:
+            let sources = try await DeviceSource.availableSources()
+            guard let match = sources.first(where: { $0.id == descriptor.id }) else {
+                throw MirrorError.sourceDisappeared(id: descriptor.id)
+            }
+            return match
+        }
+    }
 }
