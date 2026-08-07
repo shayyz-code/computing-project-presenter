@@ -34,6 +34,18 @@ public final class DeviceSource: MirrorSource {
     ///
     /// Waits for publication rather than enumerating once. Returns empty when no
     /// device is attached — a normal state, not an error.
+    /// Every published capture device, as value types.
+    ///
+    /// Sets the DAL property first, because the iPhone's screen is not published
+    /// at all until it is. Synchronous and non-throwing: an empty result means
+    /// nothing is attached, which is a normal state rather than an error.
+    public static func capturableDevices() -> [CapturableDevice] {
+        DeviceDiscovery.allowScreenCaptureDevices()
+        return AVCaptureDevice.DiscoverySession(
+            deviceTypes: DeviceDiscovery.deviceTypes, mediaType: nil, position: .unspecified
+        ).devices.map(CapturableDevice.init)
+    }
+
     public static func availableSources() async throws -> [DeviceSource] {
         DeviceDiscovery.allowScreenCaptureDevices()
 

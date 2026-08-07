@@ -28,6 +28,12 @@ Each source has a stable `id` across refreshes, so a selection survives one disa
 
   **Treat "no first frame" as a failure.** Since a silent zero-frame stream is indistinguishable from success at the API level, the source waits for a first frame and reports an explanation if none arrives. Without that, every cause of this class — hidden app, another Space, anything future — presents as an unexplained black pane.
 
+### Identity across a refresh
+
+A source's `id` must survive it disappearing and returning, because a selection is remembered between launches. **A Simulator's `CGWindowID` does not survive** — quit and relaunch it and the id changes — so identity comes from the device name in the window title. A physical device keeps its `uniqueID`, which is already stable.
+
+Discovery **polls**, roughly every two seconds. There is nothing to observe: `SCShareableContent` publishes no change notification, and `AVCaptureDevice.wasConnectedNotification` covers only the device half of the list.
+
 ### Device framing
 
 The Simulator window **includes the device chassis** — the iPhone 17 window is 435x929 around a smaller screen — so capturing the window gives the wrapped-device look for free, and the pane only has to avoid stretching it.
