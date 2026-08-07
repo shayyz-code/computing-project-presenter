@@ -1,6 +1,6 @@
-# ADR-0002: PDF-first deck rendering, with a converter chain for .pptx
+# ADR-0002: PDF-first deck rendering, LibreOffice for .pptx
 
-**Status:** Accepted · 2026-08-06 — Keynote backend verified against real decks by spike [#16](https://github.com/shayyz-code/sidecar/issues/16). See *What the spike measured*.
+**Status:** Accepted · 2026-08-06 · **amended 2026-08-07** — the Keynote backend was removed, [#79](https://github.com/shayyz-code/sidecar/issues/79). See *Why Keynote was dropped*. Spike [#16](https://github.com/shayyz-code/sidecar/issues/16)'s measurements are kept below because they are largely what justified removing it.
 
 ## Context
 
@@ -15,34 +15,47 @@ Converters available on macOS:
 - **LibreOffice** (`soffice --headless --convert-to pdf`) — good `.pptx` fidelity, but a ~1GB Homebrew install.
 - **Keynote** via Apple Events — opens `.pptx` and exports PDF, and ships with new Macs.
 
-The app is **distributed to other people**, which rules out requiring a LibreOffice install.
+The app was originally **distributed to other people**, which ruled out requiring a LibreOffice install. That premise has since changed — see *Why Keynote was dropped*.
 
 ## Decision
 
-A `DeckLoader` protocol with three backends, selected at runtime:
+A `DeckLoader` protocol with two backends, selected at runtime:
 
 | Input | Backend |
 |---|---|
 | `.pdf` | `PDFDeckLoader` — passthrough |
-| `.pptx` | `LibreOfficeDeckLoader` if `soffice` is present |
-| `.pptx` | else `KeynoteDeckLoader` |
-| neither available | a real error offering both remedies **plus "export your deck to PDF"** |
+| `.pptx` | `LibreOfficeConverter` if `soffice` is present |
+| neither available | a real error naming **two** remedies: install LibreOffice, or export the deck to PDF |
 
 PDF passthrough is primary, not a fallback. It always works, needs nothing installed, and is the only path fully testable in CI.
 
 Converted output is cached under `~/Library/Caches/`, keyed by file content hash.
 
+`PPTXDeckLoader` still takes a *list* of converters. One ships; the list is the injection point the tests use, and adding a second backend should be a change of contents rather than of shape.
+
 ## Consequences
 
-Most people install nothing. Anyone who wants better fidelity installs LibreOffice and the app picks it up automatically. Nobody is stranded: exporting to PDF is a route out of any failure.
+**A `.pptx` needs LibreOffice.** That is a real cost and the error path has to carry it — naming the `brew` command, not just the concept. Exporting to PDF remains the route out of any failure, and needs nothing installed.
 
-**Keynote's UI launches when it is driven by Apple Events** — but less badly than feared. Measured: with `open -g` it does not take focus, and it leaves no document open afterwards. See *What the spike measured*; the retreat to PDF-only is no longer needed on these grounds.
+**Fidelity is now one thing rather than two.** Whatever LibreOffice renders is what the presenter sees, on every machine. The previous chain could silently produce a *different, worse* result depending on what happened to be installed — which is the failure mode you discover on a projector.
 
-**Keynote is not guaranteed.** It ships with new Macs but is deletable. "Usually available" is the honest claim, which is why the error path names three remedies rather than two.
+## Why Keynote was dropped
 
-Apple Events requires `com.apple.security.automation.apple-events` and an `NSAppleEventsUsageDescription`, and prompts on first use. That prompt needs explaining in the UI, not just surfacing.
+Keynote was the no-install fallback. Removing it in [#79](https://github.com/shayyz-code/sidecar/issues/79) rests on one premise change and three measurements.
+
+**The premise.** This ADR justified Keynote with *"the app is distributed to other people."* [ADR-0005](0005-distribution.md) now records that there is no Apple Developer Program enrollment, so there is no notarized download — the install path is `git clone && make run`. That audience already has Xcode 26. `brew install --cask libreoffice` is a far smaller ask of them than of someone opening a DMG. The fallback was built for a user who no longer exists.
+
+**It cannot import every valid `.pptx`.** Keynote refuses this project's own deck outright — *"The file format is invalid"* — while LibreOffice converts the same file without complaint ([#77](https://github.com/shayyz-code/sidecar/issues/77)). A fallback that fails on the deck you actually have is not a fallback.
+
+**It degrades output silently.** Measured in spike #16 and recorded below: Keynote ignores fonts embedded under `ppt/fonts/*.fntdata` and substitutes. Text reflows, and in the sample three lines became five and overflowed their shape. Nothing warns anyone; it just looks wrong on a projector.
+
+**It cost a permission and a failure mode.** A third TCC prompt, an entitlement, an `NSAppleEventsUsageDescription`, and a LaunchServices-then-Apple-Events ordering whose correctness was load-bearing. When Keynote raised a modal the script could not see, the app sat on a spinner while the event ran toward a 300s timeout ([#76](https://github.com/shayyz-code/sidecar/issues/76)).
+
+A footnote for anyone tempted to restore it: the `com.apple.security.automation.apple-events` entitlement turned out **not to be checked** on the send path — measured four ways in [#71](https://github.com/shayyz-code/sidecar/issues/71). Automation consent is what gates it. So the entitlement was never buying what this ADR claimed it was.
 
 ## What the spike measured
+
+> **Historical.** This section describes the Keynote backend as it existed before [#79](https://github.com/shayyz-code/sidecar/issues/79) removed it. Nothing here describes current code — `KeynoteConverter` is gone. It is kept because the fidelity and timing numbers are what justified the removal, and because a future reader proposing to add Keynote back deserves to find the measurements rather than repeat the spike.
 
 Resolved. Keynote exports `.pptx` to PDF correctly and quickly — **but only if Keynote opens the file through LaunchServices first.**
 
@@ -80,14 +93,14 @@ They diverge when the `.pptx` embeds fonts under `ppt/fonts/*.fntdata`:
 
 Not one-sided: on that same slide LibreOffice dropped most of a vector arrow that Keynote drew correctly.
 
-### Not observed
+### Not observed at the time — both since resolved
 
-Behaviour with Keynote absent — it cannot be uninstalled here, so availability detection was verified positively (`NSWorkspace.urlForApplication(withBundleIdentifier:)` returns the path) and the absent branch is asserted, not observed. It needs a test double.
+Behaviour with Keynote absent was asserted rather than observed. Moot now: the backend is gone, and `PPTXDeckLoader` takes injected converters, so the empty-chain branch is covered by a test double rather than by the ambient machine.
 
-Apple Events consent was granted to the **terminal**, not to `Presenter.app`. A signed bundle is a different TCC subject, so the prompt shipping users see is not the one seen here — the same caveat that applies to the camera entitlement in ADR-0003.
+Apple Events consent had been granted to the **terminal**, not to the app bundle, so the prompt shipping users would see was not the one measured. Resolved in [#71](https://github.com/shayyz-code/sidecar/issues/71) against a hardened, signed build with the app as the TCC subject — and it produced the finding that killed the backend's last justification: the entitlement is not checked on the send path at all.
 
 ## Alternatives
 
-**Native OOXML renderer** — the only fully self-contained answer, and interesting in its own right, but it cannot reach usable fidelity in the time available. Not ruled out forever.
+**Native OOXML renderer** — the only fully self-contained answer, and interesting in its own right, but it cannot reach usable fidelity in the time available. Not ruled out forever, and it is now the *only* route to opening a `.pptx` with nothing installed.
 
-**Requiring LibreOffice** — simplest and highest fidelity, and the right call if this were a single-machine tool. The distribution decision rules it out.
+**Keeping Keynote as a fallback** — what this ADR originally decided. Removed in [#79](https://github.com/shayyz-code/sidecar/issues/79); the reasoning is under *Why Keynote was dropped*. Reconsider if the app is ever distributed as a notarized download again, since that restores the premise — but not before [#77](https://github.com/shayyz-code/sidecar/issues/77) explains why Keynote refuses valid decks.

@@ -185,7 +185,7 @@ struct DeckOpenerTests {
         // A .pptx is only openable when a converter exists, so a converter is
         // injected rather than assumed. This test previously asserted `true`
         // against the ambient machine and passed locally while failing on CI,
-        // where neither LibreOffice nor Keynote is installed — the code was
+        // where LibreOffice is not installed — the code was
         // right and the test was measuring the developer's laptop.
         let withConverter = DeckOpener(
             pptx: PPTXDeckLoader(converters: [InstalledConverter()]))
@@ -196,7 +196,7 @@ struct DeckOpenerTests {
     func pptxNeedsAConverter() async {
         // The behaviour CI exposed, asserted deliberately: with nothing
         // installed the answer is no, which is what drives the error naming
-        // install-LibreOffice, use-Keynote, or export-to-PDF.
+        // install-LibreOffice or export-to-PDF.
         let bare = DeckOpener(pptx: PPTXDeckLoader(converters: []))
         #expect(await !bare.canOpen(URL(fileURLWithPath: "/tmp/a.pptx")))
     }

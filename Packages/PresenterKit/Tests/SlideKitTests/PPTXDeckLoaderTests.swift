@@ -4,7 +4,7 @@ import Testing
 @testable import SlideKit
 
 /// A converter that does what the test tells it to, so chain selection and
-/// failure handling can be exercised without LibreOffice, Keynote, TCC consent
+/// failure handling can be exercised without LibreOffice, TCC consent
 /// or a GUI session — none of which CI has.
 private struct StubConverter: DeckConverter {
     let name: String
@@ -70,23 +70,25 @@ struct PPTXDeckLoaderTests {
         let loader = PPTXDeckLoader(
             converters: [
                 StubConverter(name: "LibreOffice", available: false),
-                StubConverter(name: "Keynote", available: false),
+                StubConverter(name: "Fallback", available: false),
             ], cache: temporaryCache())
         #expect(await !loader.canLoad(URL(fileURLWithPath: "/tmp/a.pptx")))
     }
 
     @Test("Skips an unavailable converter and uses the next")
     func skipsUnavailable() async throws {
-        // The behaviour that keeps a machine without LibreOffice working.
+        // Chain semantics, exercised with stubs. Only LibreOffice ships today
+        // (#79), but the loader still takes a list, so skipping a backend that
+        // is not installed has to keep working for whatever is added next.
         let used = Mutex<[String]>([])
         let loader = PPTXDeckLoader(
             converters: [
                 StubConverter(name: "LibreOffice", available: false) { used.append($0) },
-                StubConverter(name: "Keynote", available: true) { used.append($0) },
+                StubConverter(name: "Fallback", available: true) { used.append($0) },
             ], cache: temporaryCache())
 
         _ = try await loader.convertedPDF(for: try fixture("sparse-notes.pptx"))
-        #expect(used.value == ["Keynote"])
+        #expect(used.value == ["Fallback"])
     }
 
     @Test("Falls through to the next converter when one fails")
@@ -96,11 +98,11 @@ struct PPTXDeckLoaderTests {
         let loader = PPTXDeckLoader(
             converters: [
                 StubConverter(name: "LibreOffice", output: nil) { used.append($0) },
-                StubConverter(name: "Keynote") { used.append($0) },
+                StubConverter(name: "Fallback") { used.append($0) },
             ], cache: temporaryCache())
 
         _ = try await loader.convertedPDF(for: try fixture("sparse-notes.pptx"))
-        #expect(used.value == ["LibreOffice", "Keynote"])
+        #expect(used.value == ["LibreOffice", "Fallback"])
     }
 
     @Test("With nothing installed, the error names the format rather than a converter")
@@ -119,7 +121,7 @@ struct PPTXDeckLoaderTests {
         let loader = PPTXDeckLoader(
             converters: [
                 StubConverter(name: "LibreOffice", output: nil),
-                StubConverter(name: "Keynote", output: nil),
+                StubConverter(name: "Fallback", output: nil),
             ], cache: temporaryCache())
 
         do {
@@ -132,7 +134,7 @@ struct PPTXDeckLoaderTests {
             }
             // Naming both is what lets a user act on it.
             #expect(reason.contains("LibreOffice"))
-            #expect(reason.contains("Keynote"))
+            #expect(reason.contains("Fallback"))
         }
     }
 

@@ -2,10 +2,10 @@ import Foundation
 
 /// Something that can turn a file on disk into a `Deck`.
 ///
-/// Three conformances are planned, tried in the order described by ADR-0002:
-/// PDF passthrough (always available), LibreOffice (preferred for `.pptx` when
-/// installed), Keynote (the no-install fallback). None are implemented yet —
-/// they land in M1, and the Keynote path is gated on a spike.
+/// Two conformances, tried in the order described by ADR-0002: PDF passthrough
+/// (always available) and LibreOffice (for `.pptx`, when installed). A Keynote
+/// backend was the third and was removed in #79 — the distribution decision it
+/// depended on had changed, and it could not import every valid `.pptx`.
 public protocol DeckLoader: Sendable {
     /// Whether this loader can handle the file, accounting for whatever external
     /// tool it needs actually being present on this machine.

@@ -230,7 +230,6 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Sidecar uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sidecar mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -258,7 +257,6 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Sidecar uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sidecar mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

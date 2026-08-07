@@ -81,7 +81,7 @@ make build   # the app still compiles
 
 ## Spikes
 
-Some questions are cheaper to answer with throwaway code than with reasoning. Two are open — CoreMediaIO device capture and Keynote export — and both gate real design decisions.
+Some questions are cheaper to answer with throwaway code than with reasoning. Both spikes so far — CoreMediaIO device capture and Keynote export — gated real design decisions, and both have landed.
 
 A spike is labelled `type:spike`, time-boxed, and finishes by **updating its ADR with what was actually observed**. Code from a spike is not expected to survive. An answer that never reaches the ADR means the spike was wasted.
 

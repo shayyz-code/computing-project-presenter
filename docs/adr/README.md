@@ -5,10 +5,10 @@ One decision per file: the context that forced it, what was decided, and what th
 | ADR | Decision | Status |
 |---|---|---|
 | [0001](0001-project-structure.md) | SwiftUI app over SPM modules, committed project file | Accepted |
-| [0002](0002-deck-rendering.md) | PDF-first rendering, converter chain for `.pptx` | Accepted — Keynote backend verified by [#16](https://github.com/shayyz-code/sidecar/issues/16) |
+| [0002](0002-deck-rendering.md) | PDF-first rendering, LibreOffice for `.pptx` | Accepted — amended by [#79](https://github.com/shayyz-code/sidecar/issues/79), Keynote backend removed |
 | [0003](0003-mirroring-strategy.md) | One layer-vending `MirrorSource`, two capture backends | Accepted — device backend verified by [#22](https://github.com/shayyz-code/sidecar/issues/22) |
 | [0004](0004-concurrency.md) | Swift 6 language mode, isolation at the boundary | Accepted |
-| [0005](0005-distribution.md) | Developer ID, hardened runtime, no App Sandbox | Accepted |
+| [0005](0005-distribution.md) | Developer ID, hardened runtime, no App Sandbox | Accepted — amended, distribution blocked on enrolment; build from source |
 | [0006](0006-design-language.md) | Liquid Glass, macOS 26 minimum | Accepted |
 
 ## Provisional means provisional

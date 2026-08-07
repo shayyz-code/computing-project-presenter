@@ -5,13 +5,14 @@
 	<!-- App Sandbox is deliberately off; see docs/adr/0005-distribution.md.
 	     Hardened Runtime is on, so the capabilities below must be declared. -->
 
-	<!-- AVFoundation capture of a USB-connected iOS device (MirrorKit DeviceSource). -->
+	<!-- AVFoundation capture of a USB-connected iOS device (MirrorKit DeviceSource).
+	     Verified to be load-bearing: a hardened build signed without this key is
+	     denied and lands in the "Camera access is off" state. See issue #71. -->
 	<key>com.apple.security.device.camera</key>
 	<true/>
 
-	<!-- Driving Keynote to convert .pptx when LibreOffice is absent
-	     (SlideKit KeynoteDeckLoader). -->
-	<key>com.apple.security.automation.apple-events</key>
-	<true/>
+	<!-- com.apple.security.automation.apple-events was here for the Keynote
+	     converter, removed in #79. Nothing sends Apple Events now. It was also
+	     measured not to be checked on the send path anyway (#71). -->
 </dict>
 </plist>
