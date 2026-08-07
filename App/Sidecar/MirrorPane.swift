@@ -81,8 +81,8 @@ struct MirrorPane: View {
                     title: lastKind.needsScreenRecordingPermission
                         ? "Screen Recording is off" : "Camera access is off",
                     detail: lastKind.needsScreenRecordingPermission
-                        ? "Presenter needs Screen Recording permission to mirror a Simulator."
-                        : "Presenter needs Camera permission to mirror a connected iPhone."
+                        ? "Sidecar needs Screen Recording permission to mirror a Simulator."
+                        : "Sidecar needs Camera permission to mirror a connected iPhone."
                 ) {
                     Button("Open Settings") { openPrivacySettings(for: lastKind) }
                         .buttonStyle(.glassProminent)
