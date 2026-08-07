@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "0A0000000000000000000008"
-               BuildableName = "Presenter.app"
-               BlueprintName = "Presenter"
-               ReferencedContainer = "container:Presenter.xcodeproj">
+               BuildableName = "Sidecar.app"
+               BlueprintName = "Sidecar"
+               ReferencedContainer = "container:Sidecar.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0A0000000000000000000008"
-            BuildableName = "Presenter.app"
-            BlueprintName = "Presenter"
-            ReferencedContainer = "container:Presenter.xcodeproj">
+            BuildableName = "Sidecar.app"
+            BlueprintName = "Sidecar"
+            ReferencedContainer = "container:Sidecar.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0A0000000000000000000008"
-            BuildableName = "Presenter.app"
-            BlueprintName = "Presenter"
-            ReferencedContainer = "container:Presenter.xcodeproj">
+            BuildableName = "Sidecar.app"
+            BlueprintName = "Sidecar"
+            ReferencedContainer = "container:Sidecar.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

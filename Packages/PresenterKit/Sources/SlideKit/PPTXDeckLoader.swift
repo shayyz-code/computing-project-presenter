@@ -98,7 +98,7 @@ public struct ConversionCache: Sendable {
         self.directory =
             directory
             ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.codewithshayy.presenter/converted", isDirectory: true)
+            .appendingPathComponent("com.codewithshayy.sidecar/converted", isDirectory: true)
     }
 
     public func destination(for source: URL) throws -> URL {

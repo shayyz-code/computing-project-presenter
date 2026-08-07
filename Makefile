@@ -1,10 +1,10 @@
 PACKAGE_DIR := Packages/PresenterKit
 APP_DIR     := App
-PROJECT     := $(APP_DIR)/Presenter.xcodeproj
-SCHEME      := Presenter
+PROJECT     := $(APP_DIR)/Sidecar.xcodeproj
+SCHEME      := Sidecar
 DERIVED     := .build/xcode
-APP_BUNDLE  := $(DERIVED)/Build/Products/Debug/Presenter.app
-SWIFT_PATHS := $(PACKAGE_DIR)/Sources $(PACKAGE_DIR)/Tests $(APP_DIR)/Presenter
+APP_BUNDLE  := $(DERIVED)/Build/Products/Debug/Sidecar.app
+SWIFT_PATHS := $(PACKAGE_DIR)/Sources $(PACKAGE_DIR)/Tests $(APP_DIR)/Sidecar
 
 .DEFAULT_GOAL := help
 

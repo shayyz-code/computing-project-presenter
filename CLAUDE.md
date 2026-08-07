@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A macOS app for presenting a software project: the deck renders in the left pane, a live iOS screen — Simulator or a USB-connected device — in the right. The point is that a demo is part of the deck rather than an alt-tab away from it.
+**Sidecar** — a macOS app for presenting a software project: the deck renders in the left pane, a live iOS screen — Simulator or a USB-connected device — in the right. The point is that a demo is part of the deck rather than an alt-tab away from it.
 
 Distributed to other people, not just built for one machine. That constraint drives several decisions below (converter choice, permission UX, no hard external dependencies).
 
@@ -40,14 +40,16 @@ Packages/PresenterKit/    all logic, as SPM library targets
   Sources/MirrorKit/      the right pane: screen and device capture
   Sources/PresenterCore/  session state, navigation, persistence
 App/
-  Presenter.xcodeproj     one thin app target
-  Presenter/              SwiftUI shell, entitlements
+  Sidecar.xcodeproj       one thin app target
+  Sidecar/                SwiftUI shell, entitlements
 docs/{adr,specs}/
 ```
 
 **Put logic in `Packages/`, not in the app target.** That is what lets `swift test` run the suite without Xcode-version coupling, and it keeps the `.pbxproj` static.
 
-**The `.pbxproj` is committed on purpose.** The app target uses a `PBXFileSystemSynchronizedRootGroup`, so adding a Swift file under `App/Presenter/` is picked up automatically and never edits the project file. If you find yourself producing a large `.pbxproj` diff, something has gone wrong — check that before committing it.
+**The `.pbxproj` is committed on purpose.** The app target uses a `PBXFileSystemSynchronizedRootGroup`, so adding a Swift file under `App/Sidecar/` is picked up automatically and never edits the project file.
+
+**Renaming the app directory means editing that group's `path`.** Miss it and the target builds successfully with **no source files** — an empty `.app`, no error. Check `Sidecar.app/Contents/MacOS/` actually contains a binary before believing a rename worked. If you find yourself producing a large `.pbxproj` diff, something has gone wrong — check that before committing it.
 
 ## Things that will bite you
 
@@ -122,3 +124,5 @@ M0 (foundations) only. `SlideKit` and `MirrorKit` contain declarations and no im
 - **Keynote export.** Works, at exact slide counts and comparable speed to LibreOffice, provided the file is opened through LaunchServices rather than Apple Events. LibreOffice stays first in the chain because Keynote ignores fonts embedded in the `.pptx` and substitutes, which reflows text out of its shape. See `docs/adr/0002-deck-rendering.md`; probe in `Spikes/16-keynote/`.
 
 Both were verified against a signed-app TCC subject **only by proxy** — consent was granted to the terminal, not to `Presenter.app`. Re-verify camera and Apple Events against a Developer ID, hardened-runtime build before M4 ships.
+
+**The bundle identifier is `com.codewithshayy.sidecar`.** macOS keys TCC grants, preferences and the conversion cache to it, so changing it after notarisation would silently revoke every installed copy's permissions. It was settled before M4 for that reason.

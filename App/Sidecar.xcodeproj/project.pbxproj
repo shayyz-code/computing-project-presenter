@@ -13,13 +13,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0A0000000000000000000003 /* Presenter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Presenter.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A0000000000000000000003 /* Sidecar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sidecar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0A0000000000000000000004 /* Presenter */ = {
+		0A0000000000000000000004 /* Sidecar */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Presenter;
+			path = Sidecar;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -41,7 +41,7 @@
 		0A0000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				0A0000000000000000000004 /* Presenter */,
+				0A0000000000000000000004 /* Sidecar */,
 				0A0000000000000000000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -49,7 +49,7 @@
 		0A0000000000000000000002 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0A0000000000000000000003 /* Presenter.app */,
+				0A0000000000000000000003 /* Sidecar.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -57,9 +57,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		0A0000000000000000000008 /* Presenter */ = {
+		0A0000000000000000000008 /* Sidecar */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0A000000000000000000000D /* Build configuration list for PBXNativeTarget "Presenter" */;
+			buildConfigurationList = 0A000000000000000000000D /* Build configuration list for PBXNativeTarget "Sidecar" */;
 			buildPhases = (
 				0A0000000000000000000005 /* Sources */,
 				0A0000000000000000000006 /* Frameworks */,
@@ -70,16 +70,16 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				0A0000000000000000000004 /* Presenter */,
+				0A0000000000000000000004 /* Sidecar */,
 			);
-			name = Presenter;
+			name = Sidecar;
 			packageProductDependencies = (
 				0A0000000000000000000011 /* SlideKit */,
 				0A0000000000000000000012 /* MirrorKit */,
 				0A0000000000000000000013 /* PresenterCore */,
 			);
-			productName = Presenter;
-			productReference = 0A0000000000000000000003 /* Presenter.app */;
+			productName = Sidecar;
+			productReference = 0A0000000000000000000003 /* Sidecar.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -97,7 +97,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 0A000000000000000000000A /* Build configuration list for PBXProject "Presenter" */;
+			buildConfigurationList = 0A000000000000000000000A /* Build configuration list for PBXProject "Sidecar" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -114,7 +114,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				0A0000000000000000000008 /* Presenter */,
+				0A0000000000000000000008 /* Sidecar */,
 			);
 		};
 /* End PBXProject section */
@@ -222,7 +222,7 @@
 		0A000000000000000000000E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Presenter/Presenter.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sidecar/Sidecar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -230,15 +230,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Presenter uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Presenter mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Sidecar uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Sidecar mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.codewithshayy.presenter;
+				PRODUCT_BUNDLE_IDENTIFIER = com.codewithshayy.sidecar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -250,7 +250,7 @@
 		0A000000000000000000000F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Presenter/Presenter.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sidecar/Sidecar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -258,15 +258,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Presenter uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Presenter mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Sidecar uses Keynote to convert PowerPoint decks when LibreOffice is not installed.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Sidecar mirrors the screen of a USB-connected iPhone or iPad, which macOS provides through the camera system.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.codewithshayy.presenter;
+				PRODUCT_BUNDLE_IDENTIFIER = com.codewithshayy.sidecar;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -278,7 +278,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0A000000000000000000000A /* Build configuration list for PBXProject "Presenter" */ = {
+		0A000000000000000000000A /* Build configuration list for PBXProject "Sidecar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0A000000000000000000000B /* Debug */,
@@ -287,7 +287,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0A000000000000000000000D /* Build configuration list for PBXNativeTarget "Presenter" */ = {
+		0A000000000000000000000D /* Build configuration list for PBXNativeTarget "Sidecar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0A000000000000000000000E /* Debug */,
