@@ -27,6 +27,9 @@ struct ContentView: View {
     @State private var missingDeckPath: String?
     /// The file the current deck came from, for saving the session.
     @State private var deckURL: URL?
+    /// The uncached renderer, so the thumbnail strip can wrap it in a cache of
+    /// its own rather than fighting the pane's over geometry.
+    @State private var baseRenderer: SlideRenderer?
     /// Catches space and page up/down — the aliases a presenter and a remote use
     /// that are not menu shortcuts. Routed through the same command type.
     @State private var keyboard = KeyboardNavigation { command in
@@ -47,6 +50,20 @@ struct ContentView: View {
                         onNext: { _ = navigator.advance() },
                         onPrevious: { _ = navigator.retreat() }
                     )
+                    // Chrome, so it hides while presenting for the same reason
+                    // the notes do: on one display the projector shows whatever
+                    // is on screen.
+                    if !presentation.mode.isFullscreen, let baseRenderer, navigator.count > 0 {
+                        ThumbnailStrip(
+                            renderer: baseRenderer,
+                            slideCount: navigator.count,
+                            currentSlide: navigator.position,
+                            onSelect: {
+                                navigator.jump(to: $0); slideView.reset()
+                            }
+                        )
+                        .padding([.horizontal, .top], 12)
+                    }
                     // The deck keeps the space; notes take a modest strip below.
                     if presentation.mode.showsNotes, deck != nil {
                         NotesPane(deck: deck, slideNumber: navigator.position, timer: timer)
@@ -110,6 +127,26 @@ struct ContentView: View {
         .onChange(of: presentation.mode.showsNotesWindowed) { _, _ in saveSession() }
         .onChange(of: navigator.position) { _, _ in saveSession() }
         .onAppear { restoreSession() }
+        // Drag-and-drop, so a deck can be opened without the file dialog.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                let accepted = ["pdf", "pptx"].contains(url.pathExtension.lowercased())
+                Task { @MainActor in
+                    // A dropped file of the wrong kind gets the same explaining
+                    // error as one chosen in the panel, rather than silence.
+                    if accepted {
+                        open(url, restoringPosition: nil)
+                    } else {
+                        report(
+                            DeckLoadingError.noLoaderAvailable(
+                                fileExtension: url.pathExtension), for: url)
+                    }
+                }
+            }
+            return true
+        }
     }
 
     /// Reopens the last deck at the last slide.
@@ -207,7 +244,9 @@ struct ContentView: View {
             // Wrapped so advancing a slide is a cache hit rather than a fresh
             // rasterisation. Spec 0001 asks for no visible delay after the first
             // page, which a single-image cache could not deliver.
-            let loaded = CachingSlideRenderer(wrapping: try PDFSlideRenderer(url: pdf))
+            let base = try PDFSlideRenderer(url: pdf)
+            let loaded = CachingSlideRenderer(wrapping: base)
+            baseRenderer = base
             renderer = loaded
             // Slide count comes from the deck when there is one: it is read from
             // the .pptx itself, which is authoritative over a converter's output.
