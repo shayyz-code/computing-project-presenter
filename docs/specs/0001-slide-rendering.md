@@ -10,11 +10,13 @@ Open a deck and show any slide in it, at display quality, fast enough that advan
 
 ### Opening
 
-`.pdf` opens directly. `.pptx` converts to PDF first — LibreOffice when `soffice` is present, otherwise Keynote. Conversion result is cached by file content hash, so reopening the same deck is instant and editing it invalidates the cache.
+`.pdf` opens directly. `.pptx` converts to PDF first, through LibreOffice when `soffice` is present. Conversion result is cached by file content hash, so reopening the same deck is instant and editing it invalidates the cache.
+
+A Keynote backend existed as a no-install fallback and was removed in [#79](https://github.com/shayyz-code/sidecar/issues/79) — see [ADR-0002](../adr/0002-deck-rendering.md).
 
 Conversion is slow enough to need progress. Anything over ~500 ms shows it, and the ceiling is much higher than steady-state timings suggest: spike #16 measured **321 s** for LibreOffice's first-ever invocation while it built its user profile, against 6 s for the same deck warm. A first-time user hits that on their first deck-open, so progress must be indeterminate-safe and never look hung.
 
-**Keynote must be opened through LaunchServices, not Apple Events.** `NSWorkspace.open` hands Keynote a sandbox extension token for the file; a bare POSIX path over Apple Events does not, and Keynote responds with a modal dialog while the AppleEvent times out. Export over Apple Events once the document is open. See [ADR-0002](../adr/0002-deck-rendering.md).
+**`soffice` is located by absolute path, not through `PATH`.** A GUI app does not inherit the shell's environment, so a Homebrew install is invisible unless its known locations are checked directly. See `LibreOfficeConverter.candidatePaths`.
 
 ### Ordering
 
@@ -47,14 +49,13 @@ Prefetch runs off the main actor and is fire-and-forget: it must never delay a k
 **Both formats go through `DeckOpener`.** Branching on the extension in the view is what let the two paths drift: `.pptx` reported `emptyDeck` and `unreadableFile` properly while `.pdf` skipped the loader entirely, so a corrupt PDF surfaced a raw rendering error and a page-less one drew a blank pane with no explanation.
 
 
-Every failure names a remedy. No deck loader available for a `.pptx` offers three: install LibreOffice, use Keynote, or export to PDF. A corrupt file says so rather than showing an empty deck.
+Every failure names a remedy. No converter available for a `.pptx` offers two: install LibreOffice — naming the `brew` command, not just the idea — or export the deck to PDF. A corrupt file says so rather than showing an empty deck.
 
 ## Acceptance criteria
 
 - [ ] A `.pdf` opens and every page is reachable
 - [ ] A `.pptx` opens on a machine with **no LibreOffice installed**
-- [ ] Converting through Keynote does not take focus — the frontmost app is unchanged across a conversion, and no Keynote document is left open
-- [ ] A `.pptx` that embeds fonts under `ppt/fonts/*.fntdata` prefers LibreOffice when available; Keynote substitutes and text reflows out of its shape
+- [ ] A `.pptx` that embeds fonts under `ppt/fonts/*.fntdata` keeps them — LibreOffice honours them, which is why it is the one backend that ships
 - [ ] A `.pptx` whose `<p:sldIdLst>` order differs from filename order renders in author order
 - [ ] Given a fixture with notes on slides 1, 3, 4 and none on 2, 5 — notes land on 1, 3, 4, and slides 2 and 5 report none
 - [ ] A deck with zero slides is reported as `DeckLoadingError.emptyDeck`, not rendered as blank — reachable for `.pptx`; see the note below for `.pdf`
@@ -76,7 +77,7 @@ Ground truth for slide count is `<p:sldId>` entries in `ppt/presentation.xml`, r
 
 **Zip entries are not all deflated.** Across 61 real decks: 8311 DEFLATE entries and 1219 STORED, of which 82 were `.xml` — exactly the parts a metadata reader fetches. Treating everything as deflate returns garbage for those and reports no error, so at least one fixture carries a STORED `.xml` part.
 
-Fixture-based tests run in CI. Conversion tests need `soffice` or Keynote consent, so they are tagged and excluded — verify those by hand.
+Fixture-based tests run in CI. Conversion tests need `soffice` installed, so they are tagged and excluded — verify those by hand.
 
 ## Out of scope
 

@@ -342,10 +342,12 @@ struct ContentView: View {
         switch error {
         case DeckLoadingError.noLoaderAvailable:
             alert.informativeText = """
-                Converting a .pptx needs LibreOffice or Keynote installed.
+                Converting a .pptx needs LibreOffice installed.
 
-                Install either one, or export the deck to PDF and open that — \
-                a PDF needs nothing at all.
+                    brew install --cask libreoffice
+
+                Or export the deck to PDF and open that — a PDF needs nothing \
+                at all.
                 """
         case DeckLoadingError.emptyDeck:
             alert.informativeText = "That deck contains no slides."

@@ -12,10 +12,11 @@ public struct PPTXDeckLoader: DeckLoader {
     private let converters: [DeckConverter]
     private let cache: ConversionCache
 
-    /// Chain order per ADR-0002: LibreOffice first because it honours fonts
-    /// embedded in the `.pptx`, Keynote second because it needs no install.
+    /// LibreOffice only, per ADR-0002. The list stays plural because it is the
+    /// injection point the tests use, and because a second converter is a change
+    /// of contents rather than of shape.
     public init(
-        converters: [DeckConverter] = [LibreOfficeConverter(), KeynoteConverter()],
+        converters: [DeckConverter] = [LibreOfficeConverter()],
         cache: ConversionCache = ConversionCache()
     ) {
         self.converters = converters
