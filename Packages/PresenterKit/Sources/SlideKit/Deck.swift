@@ -34,6 +34,14 @@ public struct Deck: Equatable, Sendable {
     }
 
     public var count: Int { slides.count }
+
+    /// Whether any slide carries notes.
+    ///
+    /// A PDF carries none at all, so a notes pane over one would be a
+    /// permanently empty box — the failure spec 0003 forbids. Gating on the
+    /// *deck* rather than the current slide also stops the pane flickering in
+    /// and out while navigating a deck with sparse notes.
+    public var hasNotes: Bool { slides.contains { $0.notes?.isEmpty == false } }
     public var isEmpty: Bool { slides.isEmpty }
 
     /// The slide at a 1-based position, or `nil` if out of range.
