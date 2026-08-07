@@ -62,8 +62,10 @@ final class SlideNSView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
 
-        context.setFillColor(NSColor.windowBackgroundColor.cgColor)
-        context.fill(bounds)
+        // Deliberately not filled: an opaque fill here would cover the window
+        // backdrop and hide the desktop blur entirely. The slide itself is
+        // opaque, drawn below — ADR-0006 says content is not glass.
+        context.clear(bounds)
 
         guard let renderer, slideNumber >= 1, slideNumber <= renderer.pageCount else { return }
         let page = slideNumber - 1

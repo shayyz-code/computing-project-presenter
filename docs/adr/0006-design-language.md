@@ -31,6 +31,14 @@ Checked against the real deck, windowed and fullscreen, with notes revealed: it 
 
 That is a property of the layout, not a fix, and it is only true while chrome stays adjacent. **Anything that overlays a slide — a fullscreen toolbar, a floating control, a multi-display presenter overlay (#31) — reopens this and must be re-checked against a bright deck.**
 
+**The window itself is translucent, but only while not presenting.** Glass surfaces sample what is behind them, and for a long time that was the app's own opaque background — so the effect was real but sampled nothing interesting, and looked flat next to system chrome. The window now sets `isOpaque = false` over an `NSVisualEffectView` with `.behindWindow` blending, which is what makes the backdrop actually be the desktop.
+
+Two halves that are worthless apart: `.withinWindow` blending samples the app's own content and changes nothing, and any `NSVisualEffectView` inside an opaque window blurs nothing at all.
+
+**Opaque on entering fullscreen.** A translucent window mid-presentation means a projector showing fragments of the desktop around the deck, and a notification banner bleeding through behind it. The switch hooks the fullscreen observers `PresentationController` already keeps for the sleep assertion, so it inherits their property: entering by the green button, the Window menu, or macOS restoring fullscreen at launch is handled identically to the menu item.
+
+Same asymmetry as the speaker notes — pleasant while working, off by default when a room is watching.
+
 **Not everything should be glass.** `SlidePane` draws an opaque slide edge to edge; translucency behind it samples nothing and costs compositing. Glass belongs on chrome — controls, panels, empty states — not on content.
 
 **Sibling glass elements need a `GlassEffectContainer`.** Independent glass views stack their sampling and read as muddy where they meet. The container is what makes several elements behave as one material.

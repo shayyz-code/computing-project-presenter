@@ -236,9 +236,10 @@ final class LayerHostView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer = CALayer()
-        // Neutral rather than black: the mirror should read as a device resting
-        // on a surface, not as a hole in the window.
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        // Clear rather than filled, so the window backdrop shows through the
+        // empty area around the device. The chassis below stays opaque, so the
+        // mirrored screen is never translucent.
+        layer?.backgroundColor = NSColor.clear.cgColor
         chassis.backgroundColor = NSColor.black.cgColor
         chassis.masksToBounds = true
         layer?.addSublayer(chassis)
