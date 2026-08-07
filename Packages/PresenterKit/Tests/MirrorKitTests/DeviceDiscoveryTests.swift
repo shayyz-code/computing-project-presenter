@@ -149,10 +149,59 @@ struct DeviceChassisTests {
         #expect(inner >= 0)
     }
 
+    @Test("Side buttons sit outside the body, on the side they belong to")
+    func buttonsAreOutside() {
+        let chassis = DeviceChassis.chassisRect(screenAspect: phoneAspect, in: pane)
+        let rects = DeviceChassis.buttonRects(forChassis: chassis)
+        #expect(rects.count == DeviceChassis.sideButtons.count)
+
+        for (button, rect) in zip(DeviceChassis.sideButtons, rects) {
+            // Proud of the body, not overlapping it -- a button drawn inside the
+            // bezel reads as a scratch on the screen.
+            switch button.edge {
+            case .left: #expect(rect.maxX <= chassis.minX + 0.01)
+            case .right: #expect(rect.minX >= chassis.maxX - 0.01)
+            }
+            #expect(rect.minY >= chassis.minY)
+            #expect(rect.maxY <= chassis.maxY)
+        }
+    }
+
+    @Test("Buttons are ordered from the top of the phone, not the bottom")
+    func buttonsRunFromTheTop() {
+        // The one that inverts silently. `start` is a distance from the top, but
+        // the host view is unflipped, so the arithmetic runs down from maxY.
+        // Get it backwards and the volume keys move next to the speaker, which
+        // looks plausible enough in a small pane to survive review.
+        let chassis = DeviceChassis.chassisRect(screenAspect: phoneAspect, in: pane)
+        let rects = DeviceChassis.buttonRects(forChassis: chassis)
+
+        // The action button is declared first and sits highest on the phone, so
+        // in unflipped space it has the largest maxY of the three on the left.
+        let left = zip(DeviceChassis.sideButtons, rects).filter { $0.0.edge == .left }.map(\.1)
+        #expect(left.count == 3)
+        #expect(left[0].maxY > left[1].maxY)
+        #expect(left[1].maxY > left[2].maxY)
+
+        // And all of them sit in the top half, as they do on a real phone.
+        #expect(left.allSatisfy { $0.midY > chassis.midY })
+    }
+
+    @Test("The rim never eats more than the bezel it is drawn inside")
+    func rimFitsInsideBezel() {
+        // Both are drawn from the body edge inward. A rim wider than the bezel
+        // would overlap the screen.
+        let chassis = DeviceChassis.chassisRect(screenAspect: phoneAspect, in: pane)
+        let bezel = min(chassis.width, chassis.height) * DeviceChassis.bezelRatio
+        #expect(DeviceChassis.rimWidth(forChassis: chassis) <= bezel)
+        #expect(DeviceChassis.rimWidth(forChassis: chassis) > 0)
+    }
+
     @Test("Degenerate input yields an empty rect rather than NaN geometry")
     func degenerate() {
         #expect(DeviceChassis.chassisRect(screenAspect: 0, in: pane) == .zero)
         #expect(DeviceChassis.chassisRect(screenAspect: .nan, in: pane) == .zero)
+        #expect(DeviceChassis.buttonRects(forChassis: .zero).isEmpty)
         // A pane can be laid out at zero size for a frame during a resize.
         #expect(DeviceChassis.chassisRect(screenAspect: phoneAspect, in: .zero) == .zero)
         #expect(DeviceChassis.screenRect(inChassis: .zero) == .zero)
