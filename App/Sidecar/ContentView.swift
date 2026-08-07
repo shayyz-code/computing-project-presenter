@@ -120,7 +120,14 @@ struct ContentView: View {
         }
         // Behind everything: the panes' own fills sit on top of it, so only the
         // gaps between them show the desktop.
-        .background(WindowBackdrop())
+        //
+        // `ignoresSafeArea` is what carries the backdrop up behind the title
+        // bar. Making the bar transparent is only half of it — without this the
+        // background is inset to the safe area like any other content, so the
+        // bar becomes a clear strip of raw unblurred desktop with nothing drawn
+        // behind it. The panes themselves keep their inset and stay clear of
+        // the traffic lights.
+        .background(WindowBackdrop().ignoresSafeArea())
         .background(WindowAccessor { presentation.adopt($0) })
         // Relaxed while presenting: a minimum wider than a small external
         // display would fight the layout rather than protect it.
