@@ -25,11 +25,17 @@ No `if #available` branching. One code path, one look.
 
 **No dual-path UI.** Nothing to branch, nothing to test twice, no fallback that quietly rots because the developer's machine never takes it.
 
-**Glass over a bright slide is the risk to watch.** Translucency samples what is behind it. Controls that read clearly over a dark placeholder can wash out over a white slide — which is the common case for a deck. Contrast must be checked against a real, bright deck rather than the development placeholder, or this ships looking fine to whoever built it and poor to whoever uses it.
+**Glass over a bright slide was the risk to watch, and the layout prevents it.** Translucency samples what is behind it, so controls that read clearly over a dark placeholder could wash out over a white slide — the common case for a deck.
+
+Checked against the real deck, windowed and fullscreen, with notes revealed: it does not arise. Every glass surface is **adjacent** to the slide rather than overlaid on it — the thumbnail strip and notes sit below the deck in a stack, and the mirror pane's chrome sits over its own background. So glass never samples slide content, and the controls stay legible over a near-white deck.
+
+That is a property of the layout, not a fix, and it is only true while chrome stays adjacent. **Anything that overlays a slide — a fullscreen toolbar, a floating control, a multi-display presenter overlay (#31) — reopens this and must be re-checked against a bright deck.**
 
 **Not everything should be glass.** `SlidePane` draws an opaque slide edge to edge; translucency behind it samples nothing and costs compositing. Glass belongs on chrome — controls, panels, empty states — not on content.
 
 **Sibling glass elements need a `GlassEffectContainer`.** Independent glass views stack their sampling and read as muddy where they meet. The container is what makes several elements behave as one material.
+
+This applies across a *stack*, not just within one card: the thumbnail strip and the notes pane are two bars sitting one above the other, and giving each its own effect was exactly the case the container exists for. Grouping them also moved the outer padding to one place, which fixed notes text clipping at the pane's edge.
 
 **The app is now tied to a yearly OS release.** ADR-0005's distribution story narrows to macOS 26+, and each macOS release is a compatibility question rather than a free ride.
 

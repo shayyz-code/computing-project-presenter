@@ -53,24 +53,37 @@ struct ContentView: View {
                         onNext: { _ = navigator.advance() },
                         onPrevious: { _ = navigator.retreat() }
                     )
-                    // Chrome, so it hides while presenting for the same reason
-                    // the notes do: on one display the projector shows whatever
-                    // is on screen.
-                    if !presentation.mode.isFullscreen, let baseRenderer, navigator.count > 0 {
-                        ThumbnailStrip(
-                            renderer: baseRenderer,
-                            slideCount: navigator.count,
-                            currentSlide: navigator.position,
-                            onSelect: {
-                                navigator.jump(to: $0); slideView.reset()
+                    // The strip and the notes are siblings, so they share one
+                    // GlassEffectContainer rather than each sampling its own
+                    // backdrop. Independent glass surfaces read as muddy where
+                    // they meet, which is exactly what two stacked bars do.
+                    GlassEffectContainer(spacing: 12) {
+                        VStack(spacing: 12) {
+                            // Chrome, so it hides while presenting for the same
+                            // reason the notes do: on one display the projector
+                            // shows whatever is on screen.
+                            if !presentation.mode.isFullscreen, let baseRenderer,
+                                navigator.count > 0
+                            {
+                                ThumbnailStrip(
+                                    renderer: baseRenderer,
+                                    slideCount: navigator.count,
+                                    currentSlide: navigator.position,
+                                    onSelect: {
+                                        navigator.jump(to: $0); slideView.reset()
+                                    }
+                                )
                             }
-                        )
-                        .padding([.horizontal, .top], 12)
-                    }
-                    // The deck keeps the space; notes take a modest strip below.
-                    if presentation.mode.showsNotes, deck?.hasNotes == true {
-                        NotesPane(deck: deck, slideNumber: navigator.position, timer: timer)
-                            .frame(height: 150)
+                            // The deck keeps the space; notes take a modest
+                            // strip below.
+                            if presentation.mode.showsNotes, deck?.hasNotes == true {
+                                NotesPane(
+                                    deck: deck, slideNumber: navigator.position, timer: timer
+                                )
+                                .frame(height: 150)
+                            }
+                        }
+                        .padding(12)
                     }
                 }
                 .frame(minWidth: 320)
