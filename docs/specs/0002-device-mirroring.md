@@ -69,19 +69,19 @@ A Simulator shutting down or a cable being pulled mid-presentation surfaces `sou
 
 ## Acceptance criteria
 
-Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026-08-07 — [#71](https://github.com/shayyz-code/sidecar/issues/71). A box is ticked only where something was *observed*; where a run produced no verdict it says so, because an untested criterion that reads as passing is worse than one that reads as failing.
+Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026-08-07 — [#71](https://github.com/shayyz-code/sidecar/issues/71). **6 of 13 verified, 1 failing, 6 open.** A box is ticked only where something was *observed*; where a run produced no verdict it says so, because an untested criterion that reads as passing is worse than one that reads as failing.
 
 - [ ] A booted Simulator appears in the source list within ~2s of booting
 - [x] Selecting it shows live video at ≥ 20 fps averaged over 10 s — **38.1 fps**. Recorded the mirror pane at 60 fps under synthetic motion and counted non-duplicate frames with `ffmpeg mpdecimate`; 381 distinct frames in 10 s. Motion is required: ScreenCaptureKit delivers on change, so a still home screen legitimately produces almost none
 - [x] A USB-connected iPhone appears within ~3s and mirrors at ≥ 20 fps over 10 s — **appeared in 0.15 s, 435 frames in 10 s = 43.5 fps** at 1284x2778, measured with `Spikes/22-coremediaio/probe.swift` widened to a 10 s window
 - [x] The source list offers the phone's **screen**, never its Continuity camera or Desk View — the machine publishes **five** capture devices (`Shayy`, `Shayy Camera`, `Shayy Desk View Camera`, `FaceTime HD Camera`, `OBS Virtual Camera`) and the picker listed only `Shayy`
-- [ ] A device that does not appear shows a retrying state, not a permanent "no device"
+- [x] A source that does not appear shows a retrying state, not a permanent "no device" — with nothing booted or plugged in: **"No Simulator running · Boot one from Xcode, then try again"** with a Try Again button. The empty picker reads **"No Simulator or device found"** and still offers Choose Window, so the pane is never a dead end
 - [ ] Rotating the device updates the image without restarting capture — **no verdict.** The run was invalid: capture had already failed before the rotation, so the post-rotation error was [#81](https://github.com/shayyz-code/sidecar/issues/81), not a rotation failure. Must be re-run from a known-good stream
 - [ ] The image is aspect-correct at every pane width; letterboxed, never stretched or cropped
 - [ ] Denying Screen Recording shows an explaining state with a working Settings link
 - [x] Denying Camera does the same, pointing at the **Camera** pane — reached by signing a hardened build *without* `com.apple.security.device.camera`, which is the only way to produce a denial without revoking a real grant
-- [ ] Shutting down a mirrored Simulator shows a reconnect state, not a frozen frame
-- [ ] Unplugging a mirrored device does the same
+- [x] Shutting down a mirrored Simulator shows a reconnect state, not a frozen frame — **"Simulator disconnected · The Simulator stopped or quit"** with a Reconnect button. The last frame was cleared, not left standing
+- [ ] Unplugging a mirrored device does the same — **not observed.** It is the same `case .disconnected` branch with a different string (`MirrorPane.swift:65-67`), but reading the branch is not watching it. Needs a device mirroring at the moment the cable is pulled
 - [ ] `stop()` releases the stream — no capture indicator persists after switching sources. **Not measurable by screenshot**: taking one lights the indicator itself
 - [ ] **FAILS** — switching sources ten times leaks neither memory nor capture sessions. Memory is clean (rss bounded and non-monotonic across 30 switches, `leaks` flat at 64 bytes). Capture sessions are not: after ~30 switches `SimulatorSource` stops producing frames and never recovers without restarting the app. [#81](https://github.com/shayyz-code/sidecar/issues/81)
 
