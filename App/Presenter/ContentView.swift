@@ -116,6 +116,10 @@ struct ContentView: View {
             // fullscreen where the deck should dominate.
             .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
         }
+        // Behind everything: the panes' own fills sit on top of it, so only the
+        // gaps between them show the desktop.
+        .background(WindowBackdrop())
+        .background(WindowAccessor { presentation.adopt($0) })
         // Relaxed while presenting: a minimum wider than a small external
         // display would fight the layout rather than protect it.
         .frame(
