@@ -17,10 +17,16 @@ struct ContentView: View {
     @State private var deck: Deck?
     @State private var status: LoadStatus = .idle
     @State private var timer = PresentationTimer()
-    /// Persisted windowed preference. Fullscreen carries its own separate
-    /// override, so presenting never rewrites this.
-    @AppStorage("showsNotes") private var showsNotesWindowed = true
     @State private var presentation = PresentationController(showsNotesWindowed: true)
+    /// Deck, position and notes visibility across launches. One mechanism rather
+    /// than a session snapshot plus a separate @AppStorage for notes, which would
+    /// be two sources of truth for the same preference.
+    private let sessionStore: SessionStore = UserDefaultsSessionStore()
+    /// Set when a remembered deck is no longer on disk, so the empty state can
+    /// name it instead of starting blank with no explanation.
+    @State private var missingDeckPath: String?
+    /// The file the current deck came from, for saving the session.
+    @State private var deckURL: URL?
     /// Catches space and page up/down — the aliases a presenter and a remote use
     /// that are not menu shortcuts. Routed through the same command type.
     @State private var keyboard = KeyboardNavigation { command in
@@ -51,7 +57,8 @@ struct ContentView: View {
             } else {
                 PlaceholderPane(
                     title: "Slides",
-                    detail: "No deck open yet",
+                    detail: missingDeckPath.map { "Could not find \(($0 as NSString).lastPathComponent)" }
+                        ?? "No deck open yet",
                     symbol: "rectangle.on.rectangle"
                 ) {
                     Button("Open Deck…") { openDeck() }
@@ -100,12 +107,43 @@ struct ContentView: View {
         .onDisappear { keyboard.stop() }
         // Keep the persisted preference in step with the windowed setting, in
         // whichever direction it changed.
-        .onChange(of: presentation.mode.showsNotesWindowed) { _, new in
-            showsNotesWindowed = new
+        .onChange(of: presentation.mode.showsNotesWindowed) { _, _ in saveSession() }
+        .onChange(of: navigator.position) { _, _ in saveSession() }
+        .onAppear { restoreSession() }
+    }
+
+    /// Reopens the last deck at the last slide.
+    ///
+    /// Every outcome is handled rather than lumped into "failed to restore",
+    /// because a stale session is the normal case for a machine that moves
+    /// between a desk and a lecture theatre.
+    private func restoreSession() {
+        switch SessionRestoration.from(sessionStore) {
+        case .nothingToRestore:
+            break
+
+        case .deckMissing(let path, let showsNotes, _):
+            // Restore what still applies and say which file is gone. Starting
+            // blank with no explanation would leave the user guessing.
+            presentation.mode.showsNotesWindowed = showsNotes
+            missingDeckPath = path
+
+        case .restore(let url, let position, let showsNotes, _):
+            presentation.mode.showsNotesWindowed = showsNotes
+            // The mirror source is deliberately not reconnected: doing so would
+            // unhide the Simulator uninvited and could fire a permission prompt
+            // before the user had done anything.
+            open(url, restoringPosition: position)
         }
-        .onAppear {
-            presentation.mode.showsNotesWindowed = showsNotesWindowed
-        }
+    }
+
+    private func saveSession() {
+        sessionStore.save(
+            SessionSnapshot(
+                deckPath: deckURL?.path,
+                slidePosition: navigator.position,
+                showsNotes: presentation.mode.showsNotesWindowed,
+                mirrorSourceID: nil))
     }
 
     /// The one place a navigation command is applied, so the menu and the key
@@ -127,9 +165,18 @@ struct ContentView: View {
         panel.allowedContentTypes = [.pdf, .presentationML]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        open(url, restoringPosition: nil)
+    }
+
+    /// Opens a deck, optionally jumping to a remembered slide.
+    ///
+    /// Shared by the open panel and session restore, so a restored deck goes
+    /// through exactly the same path as one opened by hand.
+    private func open(_ url: URL, restoringPosition position: Int?) {
+        missingDeckPath = nil
 
         if url.pathExtension.lowercased() == "pdf" {
-            show(pdf: url, deck: nil, source: url)
+            show(pdf: url, deck: nil, source: url, position: position)
             return
         }
 
@@ -144,7 +191,7 @@ struct ContentView: View {
                 let pdf = try await loader.convertedPDF(for: url)
                 await MainActor.run {
                     status = .idle
-                    show(pdf: pdf, deck: deck, source: url)
+                    show(pdf: pdf, deck: deck, source: url, position: position)
                 }
             } catch {
                 await MainActor.run {
@@ -155,7 +202,7 @@ struct ContentView: View {
         }
     }
 
-    private func show(pdf: URL, deck: Deck?, source: URL) {
+    private func show(pdf: URL, deck: Deck?, source: URL, position: Int?) {
         do {
             // Wrapped so advancing a slide is a cache hit rather than a fresh
             // rasterisation. Spec 0001 asks for no visible delay after the first
@@ -164,9 +211,13 @@ struct ContentView: View {
             renderer = loaded
             // Slide count comes from the deck when there is one: it is read from
             // the .pptx itself, which is authoritative over a converter's output.
-            navigator = SlideNavigator(count: deck?.count ?? loaded.pageCount)
+            // A saved position from a deck that has since been shortened is
+            // clamped here, by SlideNavigator's own construction rule.
+            navigator = SlideNavigator(count: deck?.count ?? loaded.pageCount, position: position ?? 1)
             self.deck = deck
+            self.deckURL = source
             slideView.reset()
+            saveSession()
             // Opening a deck is the start of the talk. start() is idempotent,
             // so reopening does not restart a run already in progress.
             timer.start()
