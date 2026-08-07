@@ -31,6 +31,14 @@ private func makePDF(pages: Int) throws -> URL {
 
 private enum TestError: Error { case couldNotBuild }
 
+/// Stands in for an installed converter, so format support is tested against a
+/// stated fact rather than against whatever the machine happens to have.
+private struct InstalledConverter: DeckConverter {
+    let name = "Stub"
+    func isAvailable() -> Bool { true }
+    func convert(_ pptx: URL, to pdf: URL) async throws {}
+}
+
 @Suite("PDFDeckLoader")
 struct PDFDeckLoaderTests {
 
@@ -170,9 +178,27 @@ struct DeckOpenerTests {
     @Test("Recognises both supported formats")
     func recognisesFormats() async {
         let opener = DeckOpener()
+        // A .pdf needs nothing installed, so this holds everywhere.
         #expect(await opener.canOpen(URL(fileURLWithPath: "/tmp/a.pdf")))
-        #expect(await opener.canOpen(URL(fileURLWithPath: "/tmp/a.pptx")))
         #expect(await !opener.canOpen(URL(fileURLWithPath: "/tmp/a.txt")))
+
+        // A .pptx is only openable when a converter exists, so a converter is
+        // injected rather than assumed. This test previously asserted `true`
+        // against the ambient machine and passed locally while failing on CI,
+        // where neither LibreOffice nor Keynote is installed — the code was
+        // right and the test was measuring the developer's laptop.
+        let withConverter = DeckOpener(
+            pptx: PPTXDeckLoader(converters: [InstalledConverter()]))
+        #expect(await withConverter.canOpen(URL(fileURLWithPath: "/tmp/a.pptx")))
+    }
+
+    @Test("Without a converter, a .pptx is honestly unopenable")
+    func pptxNeedsAConverter() async {
+        // The behaviour CI exposed, asserted deliberately: with nothing
+        // installed the answer is no, which is what drives the error naming
+        // install-LibreOffice, use-Keynote, or export-to-PDF.
+        let bare = DeckOpener(pptx: PPTXDeckLoader(converters: []))
+        #expect(await !bare.canOpen(URL(fileURLWithPath: "/tmp/a.pptx")))
     }
 
     @Test("A corrupt PDF surfaces as a deck error, not a rendering one")
