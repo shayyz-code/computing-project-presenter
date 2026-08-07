@@ -1,6 +1,6 @@
 # ADR-0003: One layer-vending MirrorSource protocol, two capture backends
 
-**Status:** Accepted · 2026-08-06 — device backend verified against hardware by spike [#22](https://github.com/shayyz-code/computing-project-presenter/issues/22). See *What the spike measured*.
+**Status:** Accepted · 2026-08-06 — device backend verified against hardware by spike [#22](https://github.com/shayyz-code/sidecar/issues/22). See *What the spike measured*.
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 Answers: *can we drive Keynote via Apple Events to export a usable PDF from a `.pptx`?*
 
-**Yes, but only if Keynote opens the file through LaunchServices first.** Result and consequences in [ADR-0002](../../docs/adr/0002-deck-rendering.md); working through on [issue #16](https://github.com/shayyz-code/computing-project-presenter/issues/16).
+**Yes, but only if Keynote opens the file through LaunchServices first.** Result and consequences in [ADR-0002](../../docs/adr/0002-deck-rendering.md); working through on [issue #16](https://github.com/shayyz-code/sidecar/issues/16).
 
 ```bash
 ./convert.sh deck.pptx out.pdf
