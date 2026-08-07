@@ -44,6 +44,9 @@ final class PresentationController {
     func adopt(_ window: NSWindow) {
         guard self.window !== window else { return }
         self.window = window
+        // Chrome style, set once. The translucency below toggles with the mode;
+        // where the backdrop reaches does not.
+        window.extendBackdropUnderTitlebar()
         window.setBackdropTranslucent(!mode.isFullscreen)
     }
 

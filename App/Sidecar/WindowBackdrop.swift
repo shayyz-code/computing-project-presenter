@@ -16,9 +16,18 @@ struct WindowBackdrop: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.blendingMode = .behindWindow
-        // Reads as the surface a window sits on, rather than as a sidebar or a
-        // HUD — both of which carry their own tint and would fight the glass.
-        view.material = .underWindowBackground
+        // Lets more of the desktop through than `.underWindowBackground`, which
+        // is close to opaque and left the glass surfaces little to sample.
+        //
+        // Compared against a real desktop rather than picked from the docs.
+        // `.hudWindow` is markedly more transparent — text in the window behind
+        // stayed legible through the blur — but it carries a dark tint of its
+        // own that sits on top of what the glass samples, flattening the
+        // contrast the surfaces rely on. `.sidebar` is the most translucent
+        // material that stays tint-neutral, which is the side of that trade
+        // ADR-0006 argues for: the backdrop belongs under the glass, not in
+        // competition with it.
+        view.material = .sidebar
         // Keeps blurring when the app is not frontmost. A backdrop that goes
         // flat the moment you click elsewhere draws attention to itself.
         view.state = .active
@@ -64,5 +73,24 @@ extension NSWindow {
     func setBackdropTranslucent(_ translucent: Bool) {
         isOpaque = !translucent
         backgroundColor = translucent ? .clear : .windowBackgroundColor
+    }
+
+    /// Runs the backdrop up behind the title bar.
+    ///
+    /// The title bar is its own surface, and it does not inherit the window's
+    /// material. With the window non-opaque it rendered as a clear strip of raw
+    /// unblurred desktop sitting above a blurred body — the seam was the giveaway
+    /// that the translucency was painted on rather than the window's own.
+    ///
+    /// `.fullSizeContentView` extends the content view under the title bar so
+    /// `WindowBackdrop` covers it, and `titlebarAppearsTransparent` stops AppKit
+    /// drawing its own bar on top. Both are needed: the first alone leaves the
+    /// bar opaque over the backdrop, the second alone leaves nothing behind it.
+    ///
+    /// SwiftUI still insets content for the title bar's height, so the panes do
+    /// not slide under the traffic lights.
+    func extendBackdropUnderTitlebar() {
+        titlebarAppearsTransparent = true
+        styleMask.insert(.fullSizeContentView)
     }
 }
