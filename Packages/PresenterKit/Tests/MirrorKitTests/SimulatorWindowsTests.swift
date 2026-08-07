@@ -175,4 +175,17 @@ struct MirrorErrorMappingTests {
         #expect(MirrorError.from(scError(-3801), kind: .window) == .permissionDenied(.window))
         #expect(MirrorSourceKind.simulator.needsScreenRecordingPermission)
     }
+
+    @Test("The Apple TV Remote companion window is not offered as a device")
+    func excludesAuxiliaryWindows() {
+        // It is titled and non-zero, so size and emptiness checks let it
+        // through. Harmless when a caller took the largest window, but a picker
+        // shows every entry and "Apple TV Remote" beside "iPhone 17" is a
+        // confusing thing to be offered.
+        let windows = [
+            window(id: 1, title: "iPhone 17", width: 435, height: 929),
+            window(id: 2, title: "Apple TV Remote", width: 155, height: 515),
+        ]
+        #expect(SimulatorWindows.devices(in: windows).map(\.title) == ["iPhone 17"])
+    }
 }

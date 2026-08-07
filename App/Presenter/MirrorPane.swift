@@ -8,26 +8,32 @@ import SwiftUI
 /// rotation handling and the full permission UI are #26; source discovery with
 /// live list updates is #24.
 struct MirrorPane: View {
+    /// A source id remembered from the last session, pre-selected but never
+    /// auto-connected — connecting would unhide a Simulator uninvited.
+    let rememberedSourceID: String?
+    let onSourceChanged: (String?) -> Void
+
     @State private var source: (any MirrorSource)?
     @State private var state: MirrorState = .idle
+    @State private var discovery = SourceDiscovery()
     /// Which source was last attempted, so retries and permission messages
     /// address the right one.
     @State private var lastKind: MirrorSourceKind = .simulator
+    @State private var lastDescriptor: MirrorSourceDescriptor?
 
     var body: some View {
         Group {
             switch state {
             case .idle:
                 MirrorMessage(
-                    symbol: "iphone.gen3", title: "Device", detail: "No source selected"
+                    symbol: "iphone.gen3", title: "Device",
+                    detail: discovery.sources.count > 1
+                        ? "Pick something to mirror" : "No Simulator or device found"
                 ) {
-                    VStack(spacing: 8) {
-                        Button("Mirror Simulator") { Task { await connect(.simulator) } }
-                            .buttonStyle(.glassProminent)
-                            .controlSize(.large)
-                        Button("Mirror iPhone") { Task { await connect(.device) } }
-                            .buttonStyle(.glass)
-                    }
+                    SourcePicker(
+                        sources: discovery.sources,
+                        remembered: rememberedSourceID,
+                        onSelect: { descriptor in Task { await connect(descriptor) } })
                 }
 
             case .searching:
@@ -57,7 +63,7 @@ struct MirrorPane: View {
                         ? "Connect an iPhone by USB, unlock it, and tap Trust."
                         : "Boot one from Xcode, then try again."
                 ) {
-                    Button("Try Again") { Task { await connect(lastKind) } }
+                    Button("Try Again") { Task { await retry() } }
                         .buttonStyle(.glass)
                 }
 
@@ -84,7 +90,7 @@ struct MirrorPane: View {
                     title: "Could not mirror",
                     detail: reason
                 ) {
-                    Button("Try Again") { Task { await connect(lastKind) } }
+                    Button("Try Again") { Task { await retry() } }
                         .buttonStyle(.glass)
                 }
 
@@ -96,34 +102,35 @@ struct MirrorPane: View {
                     title: "Simulator disconnected",
                     detail: "The Simulator stopped or quit."
                 ) {
-                    Button("Reconnect") { Task { await connect(lastKind) } }
+                    Button("Reconnect") { Task { await retry() } }
                         .buttonStyle(.glassProminent)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { discovery.startMonitoring() }
         // Deliberately no `.onDisappear` teardown. SwiftUI fires it for
         // transient reasons — a modal appearing was enough — and tearing the
         // stream down there stopped the mirror without telling anyone.
         // The pane lives as long as the window; the window closing releases it.
     }
 
-    private func connect(_ kind: MirrorSourceKind) async {
+    private func retry() async {
+        if let lastDescriptor {
+            await connect(lastDescriptor)
+        } else {
+            state = .idle
+        }
+    }
+
+    private func connect(_ descriptor: MirrorSourceDescriptor) async {
         await disconnect()
-        lastKind = kind
+        lastKind = descriptor.kind
+        lastDescriptor = descriptor
         state = .searching
 
         do {
-            let sources: [any MirrorSource] =
-                kind == .device
-                ? try await DeviceSource.availableSources()
-                : try await SimulatorSource.availableSources()
-            guard let first = sources.first else {
-                // Absence is normal, not a failure — booting a Simulator or
-                // plugging a phone in later should just work.
-                state = .noSource
-                return
-            }
+            let first = try await discovery.makeSource(for: descriptor)
             let onStopped: (MirrorError) -> Void = { _ in
                 Task { @MainActor in
                     self.source = nil
@@ -134,6 +141,7 @@ struct MirrorPane: View {
             (first as? DeviceSource)?.onStopped = onStopped
             let layer = try await first.start()
             source = first
+            onSourceChanged(descriptor.id)
             state = .mirroring(layer)
         } catch let error as MirrorError {
             switch error {
@@ -271,6 +279,49 @@ final class LayerHostView: NSView {
             width: screen.width, height: screen.height)
         mirrored.cornerRadius = DeviceChassis.screenCornerRadius(forChassis: body)
         mirrored.masksToBounds = true
+    }
+}
+
+/// Lists everything discovery found, with the remembered source marked.
+private struct SourcePicker: View {
+    let sources: [MirrorSourceDescriptor]
+    let remembered: String?
+    let onSelect: (MirrorSourceDescriptor) -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(sources) { descriptor in
+                Button {
+                    onSelect(descriptor)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: symbol(for: descriptor.kind))
+                        Text(descriptor.name)
+                        // Marks the source restored from the last session. It is
+                        // pre-selected rather than connected, because connecting
+                        // on launch would unhide a Simulator uninvited.
+                        if descriptor.id == remembered {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(.secondary)
+                                .help("Used last time")
+                        }
+                    }
+                }
+                // Two branches rather than a type-erased style: SwiftUI has no
+                // AnyButtonStyle, and erasing one by hand for a cosmetic
+                // difference would cost more than it saves.
+                .buttonStyle(.glass)
+                .tint(descriptor.id == remembered ? Color.accentColor : nil)
+            }
+        }
+    }
+
+    private func symbol(for kind: MirrorSourceKind) -> String {
+        switch kind {
+        case .simulator: "iphone.gen3"
+        case .device: "iphone"
+        case .window: "macwindow"
+        }
     }
 }
 
