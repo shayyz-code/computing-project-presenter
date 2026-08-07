@@ -18,7 +18,7 @@ There is also `soffice`, invoked as a subprocess. A sandboxed app cannot execute
 
 **Developer ID distribution, hardened runtime on, App Sandbox off.**
 
-Entitlements: `com.apple.security.device.camera`, `com.apple.security.automation.apple-events`.
+Entitlements: `com.apple.security.device.camera`, `com.apple.security.automation.apple-events`. Bundle identifier `com.codewithshayy.sidecar` — see [ADR-0006](0006-design-language.md) for why it was settled before notarisation.
 
 ## Consequences
 

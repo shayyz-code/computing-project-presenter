@@ -47,6 +47,14 @@ This applies across a *stack*, not just within one card: the thumbnail strip and
 
 **The app is now tied to a yearly OS release.** ADR-0005's distribution story narrows to macOS 26+, and each macOS release is a compatibility question rather than a free ride.
 
+## The product name
+
+**Sidecar.** Apple ships a feature of the same name — iPad as a second display — which is adjacent territory, and that was raised and considered before choosing. Recorded here so a later reader treats it as a decision rather than an oversight to correct.
+
+Nothing collides technically: the bundle identifier is `com.codewithshayy.sidecar`, namespaced to the developer. The cost is discoverability, which the README answers by leading with a one-line description of what the app does and a note distinguishing it from Apple's feature.
+
+Settled before M4 because macOS keys TCC grants and preferences to the bundle identifier: changing it after notarisation would silently revoke every installed copy's Screen Recording and Camera permissions.
+
 ## Alternatives
 
 **Conditional `#available` with a `.regularMaterial` fallback** — keeps macOS 15 users. Rejected: it doubles the UI paths, and since the fallback covers every machine below 26, it becomes the appearance most people see while receiving the least attention. A design decision that only applies on the newest OS is not really a design decision.

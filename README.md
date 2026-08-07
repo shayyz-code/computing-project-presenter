@@ -1,8 +1,10 @@
-# computing-project-presenter
+# Sidecar
 
-A macOS app for presenting a software project. Your deck renders on the left; a live iOS screen — Simulator or a USB-connected device — renders on the right. The demo is part of the deck instead of an alt-tab away from it.
+**Present your deck and your live app side by side, in one window.** Your slides render on the left; a live iOS screen — Simulator or a USB-connected device — renders on the right. The demo is part of the deck instead of an alt-tab away from it.
 
-> **Status: early.** The foundations are in place; slide rendering and device mirroring are not built yet. See the [milestones](../../milestones) for what is landing when.
+> **Status.** Slides, mirroring and the presenter shell are built: `.pdf` and `.pptx` decks, zoom and trackpad navigation, speaker notes with a timer, Simulator and USB device mirroring, fullscreen, and session restore. Remaining work is distribution — see the [milestones](../../milestones).
+
+> **Not** Apple's Sidecar, which extends your Mac display to an iPad. This is a presentation tool; the name was chosen deliberately.
 
 ## Why
 

@@ -2,7 +2,7 @@ import PresenterCore
 import SwiftUI
 
 @main
-struct PresenterApp: App {
+struct SidecarApp: App {
     /// Navigation requests reach the window through a notification rather than
     /// shared state, matching how Open Deck and the presentation commands
     /// already work.
