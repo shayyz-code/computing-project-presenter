@@ -51,9 +51,23 @@ Resolved. Setting `kCMIOHardwarePropertyAllowScreenCaptureDevices` **still works
 
 **No private entitlement and no special API.** That is the finding that decided shippability — QuickTime Player holds no CoreMediaIO or DAL entitlement either; its only temporary exceptions are FairPlay/DRM. There is no key Apple has and we do not.
 
-**This is not the same as "no entitlement".** The probe was a `swiftc` binary with no `Info.plist` and, critically, **no hardened runtime** — `make build` ad-hoc signs and disables it, so local builds cannot detect the difference. The shipping app runs Developer ID + hardened runtime (ADR-0005), which gates camera access behind `com.apple.security.device.camera`; the DAL device is an `AVCaptureDevice` and is subject to that gate.
+**This is not the same as "no entitlement".** The probe was a `swiftc` binary with no `Info.plist` and, critically, **no hardened runtime** — `make build` ad-hoc signs and disables it, so an ordinary local build cannot detect the difference. Under hardened runtime, camera access is gated behind `com.apple.security.device.camera`, and the DAL device is an `AVCaptureDevice` subject to that gate.
 
-The app is already configured for it — `Presenter.entitlements` declares the camera entitlement, `ENABLE_HARDENED_RUNTIME = YES` in both configs, and `NSCameraUsageDescription` is set. **Still unverified against a signed, hardened-runtime Release build**, and that verification belongs in M4 before notarization rather than at the end of it.
+### The gate is real — verified 2026-08-07
+
+Resolved in [#71](https://github.com/shayyz-code/sidecar/issues/71). The same bundle was signed twice with the hardened runtime on, changing one thing, and run against a real iPhone over USB:
+
+| Signed with | Selecting the device |
+|---|---|
+| hardened + `com.apple.security.device.camera` | **mirrors live** — chassis, aspect-correct |
+| hardened, entitlement **removed** | **"Camera access is off"** + a link to the Camera pane |
+
+So the entitlement is load-bearing, and the app's configuration is now true of a binary rather than only of the project file. Two details fall out of it:
+
+- **Enumeration is not gated.** The device list still populated without the entitlement; the gate fires when the capture session starts. **An empty source list therefore never indicates a permission problem** — do not write UI that infers one from it.
+- **The app degrades rather than dying.** A hardened-runtime entitlement violation can terminate a process; this one does not. It lands in the explaining state spec 0002 requires.
+
+This was measured with a free-Apple-ID *Apple Development* certificate rather than Developer ID. That is sound for this question: the gate is a property of the hardened runtime, not of the certificate type. `make build-signed` reproduces it.
 
 The frame-rate spread is a sampling artifact as much as a real range: 3-second windows under-report, and the low readings clustered in runs started immediately after a previous session released the device. Spec 0002 therefore sets its floor over a 10-second window.
 
@@ -90,6 +104,8 @@ Preconditions: wired, paired **and trusted**, unlocked. Note `devicectl`'s `Pair
 ## The window picker avoids a consent prompt that a hand-built filter triggers
 
 Measured on macOS 26: constructing an `SCContentFilter` directly and starting a stream raises an extra system prompt — *"Presenter is requesting to bypass the system private window picker and directly access your screen and audio"* — on top of the Screen Recording grant. `SCContentSharingPicker` is the sanctioned path and raises no such prompt.
+
+(Quoted verbatim from before the product was renamed in [#68](https://github.com/shayyz-code/sidecar/issues/68); macOS substitutes the app's display name, so it reads "Sidecar" now.)
 
 `SimulatorSource` still builds its filter directly, deliberately: making a presenter choose their Simulator from a system sheet on every connect is worse than one extra grant taken once. `WindowSource` uses the picker, where choosing is the point anyway.
 

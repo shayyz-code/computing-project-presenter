@@ -32,7 +32,9 @@ Sidecar.app: rejected
 origin=Apple Development: … (8DZ7UT2AYX)
 ```
 
-The signature is valid on disk and satisfies its own Designated Requirement. Gatekeeper still refuses it, because assessment wants a Developer ID chain plus a notarization ticket. So a downloaded build would be blocked regardless of how carefully it was signed. **That is measured, not inferred from "no enrollment".**
+The signature is valid on disk and satisfies its own Designated Requirement. Gatekeeper still refuses it, because assessment wants a Developer ID chain plus a notarization ticket.
+
+**Read that narrowly.** It shows that *the only certificate available here* fails assessment — which is exactly what a development certificate is supposed to do, and is enough to rule out shipping a build from this machine. It says nothing about Developer ID, which would of course pass; that is what the programme is for. The blocker is the absent enrolment, not a technical doubt about the signing chain.
 
 **Therefore: build from source.** `git clone && make run`. It needs Xcode 26, which is a real cost, but it is honest — no quarantine workaround to talk anyone through, and nothing that trains a user to bypass Gatekeeper.
 
