@@ -45,7 +45,6 @@ struct NotesPane: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(in: .rect(cornerRadius: 16))
-        .padding([.horizontal, .bottom], 12)
     }
 }
 
