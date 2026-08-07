@@ -28,6 +28,7 @@ struct ContentView: View {
     /// The mirror source used last time. Restored so the picker can mark it,
     /// never so it can connect on its own.
     @State private var rememberedSourceID: String?
+    @State private var layout = LayoutState()
     /// The file the current deck came from, for saving the session.
     @State private var deckURL: URL?
     /// The uncached renderer, so the thumbnail strip can wrap it in a cache of
@@ -41,7 +42,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        HSplitView {
+        SplitView(layout: layout) {
             if case .converting(let name) = status {
                 ConvertingPane(filename: name)
             } else if let renderer {
@@ -99,8 +100,10 @@ struct ContentView: View {
                         .controlSize(.large)
                 }
             }
+        } mirror: {
             MirrorPane(
                 rememberedSourceID: rememberedSourceID,
+                collapsed: !layout.showsMirror,
                 onSourceChanged: { id in
                     rememberedSourceID = id
                     saveSession()
@@ -114,7 +117,6 @@ struct ContentView: View {
             // minimum and gives everything else here: the primary content
             // ends up the smallest thing on screen, worst of all in
             // fullscreen where the deck should dominate.
-            .frame(minWidth: 260, idealWidth: 380, maxWidth: 480)
         }
         // Behind everything: the panes' own fills sit on top of it, so only the
         // gaps between them show the desktop.
@@ -152,6 +154,18 @@ struct ContentView: View {
         // whichever direction it changed.
         .onChange(of: presentation.mode.showsNotesWindowed) { _, _ in saveSession() }
         .onChange(of: navigator.position) { _, _ in saveSession() }
+        .onChange(of: layout.deckFraction) { _, _ in saveSession() }
+        .onChange(of: layout.mirrorIsTrailing) { _, _ in saveSession() }
+        .onChange(of: layout.collapsed) { _, _ in saveSession() }
+        .onReceive(NotificationCenter.default.publisher(for: .swapSidesRequested)) { _ in
+            layout.swapSides()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .collapseMirrorRequested)) { _ in
+            layout.toggleCollapse(.mirror)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .collapseDeckRequested)) { _ in
+            layout.toggleCollapse(.deck)
+        }
         .onAppear { restoreSession() }
         // Drag-and-drop, so a deck can be opened without the file dialog.
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
@@ -181,6 +195,15 @@ struct ContentView: View {
     /// because a stale session is the normal case for a machine that moves
     /// between a desk and a lecture theatre.
     private func restoreSession() {
+        // Layout restores regardless of whether the deck still exists: a moved
+        // file should not also reset the window arrangement.
+        if let snapshot = sessionStore.load() {
+            layout = LayoutState(
+                deckFraction: snapshot.deckFraction,
+                mirrorIsTrailing: snapshot.mirrorIsTrailing,
+                collapsed: snapshot.collapsedPane)
+        }
+
         switch SessionRestoration.from(sessionStore) {
         case .nothingToRestore:
             break
@@ -208,7 +231,10 @@ struct ContentView: View {
                 deckPath: deckURL?.path,
                 slidePosition: navigator.position,
                 showsNotes: presentation.mode.showsNotesWindowed,
-                mirrorSourceID: rememberedSourceID))
+                mirrorSourceID: rememberedSourceID,
+                deckFraction: layout.deckFraction,
+                mirrorIsTrailing: layout.mirrorIsTrailing,
+                collapsedPane: layout.collapsed))
     }
 
     /// The one place a navigation command is applied, so the menu and the key
@@ -349,6 +375,9 @@ extension Notification.Name {
     static let toggleNotesRequested = Notification.Name("toggleNotesRequested")
     static let togglePresentationRequested = Notification.Name("togglePresentationRequested")
     static let navigateRequested = Notification.Name("navigateRequested")
+    static let swapSidesRequested = Notification.Name("swapSidesRequested")
+    static let collapseMirrorRequested = Notification.Name("collapseMirrorRequested")
+    static let collapseDeckRequested = Notification.Name("collapseDeckRequested")
 }
 
 /// An empty pane: what it is, why it is empty, and an optional way out of that.

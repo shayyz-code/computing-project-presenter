@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// What is worth remembering between launches.
@@ -18,15 +19,42 @@ public struct SessionSnapshot: Codable, Equatable, Sendable {
     /// Reconnecting on launch would unhide the Simulator uninvited and could
     /// fire a Camera or Screen Recording prompt before the user did anything.
     public var mirrorSourceID: String?
+    /// Fraction of the window given to the deck.
+    public var deckFraction: CGFloat
+    public var mirrorIsTrailing: Bool
+    public var collapsedPane: LayoutState.CollapsedPane
 
     public init(
         deckPath: String? = nil, slidePosition: Int = 1, showsNotes: Bool = true,
-        mirrorSourceID: String? = nil
+        mirrorSourceID: String? = nil,
+        deckFraction: CGFloat = LayoutState.defaultDeckFraction,
+        mirrorIsTrailing: Bool = true,
+        collapsedPane: LayoutState.CollapsedPane = .none
     ) {
         self.deckPath = deckPath
         self.slidePosition = slidePosition
         self.showsNotes = showsNotes
         self.mirrorSourceID = mirrorSourceID
+        self.deckFraction = deckFraction
+        self.mirrorIsTrailing = mirrorIsTrailing
+        self.collapsedPane = collapsedPane
+    }
+
+    /// Decoding tolerates a snapshot written before layout was stored, so an
+    /// existing session is restored rather than discarded on upgrade.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        deckPath = try container.decodeIfPresent(String.self, forKey: .deckPath)
+        slidePosition = try container.decodeIfPresent(Int.self, forKey: .slidePosition) ?? 1
+        showsNotes = try container.decodeIfPresent(Bool.self, forKey: .showsNotes) ?? true
+        mirrorSourceID = try container.decodeIfPresent(String.self, forKey: .mirrorSourceID)
+        deckFraction =
+            try container.decodeIfPresent(CGFloat.self, forKey: .deckFraction)
+            ?? LayoutState.defaultDeckFraction
+        mirrorIsTrailing = try container.decodeIfPresent(Bool.self, forKey: .mirrorIsTrailing) ?? true
+        collapsedPane =
+            try container.decodeIfPresent(LayoutState.CollapsedPane.self, forKey: .collapsedPane)
+            ?? .none
     }
 
     public var deckURL: URL? {
