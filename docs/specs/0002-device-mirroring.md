@@ -69,19 +69,22 @@ A Simulator shutting down or a cable being pulled mid-presentation surfaces `sou
 
 ## Acceptance criteria
 
+Run against an iPhone 13 Pro Max over USB and a booted iPhone 17 Simulator, 2026-08-07 — [#71](https://github.com/shayyz-code/sidecar/issues/71). **7 of 13 verified, 1 failing, 5 open.** A box is ticked only where something was *observed*; where a run produced no verdict it says so, because an untested criterion that reads as passing is worse than one that reads as failing.
+
 - [ ] A booted Simulator appears in the source list within ~2s of booting
-- [ ] Selecting it shows live video at ≥ 20 fps averaged over 10 s
-- [ ] A USB-connected iPhone appears within ~3s of the property being set and mirrors live at ≥ 20 fps averaged over 10 s
-- [ ] The source list offers the phone's **screen**, never its Continuity camera or Desk View
-- [ ] A device that does not appear shows a retrying state, not a permanent "no device" — publication is intermittent after a previous session
-- [ ] Rotating the device updates the image without restarting capture
+- [x] Selecting it shows live video at ≥ 20 fps averaged over 10 s — **38.1 fps**. Recorded the mirror pane at 60 fps under synthetic motion and counted non-duplicate frames with `ffmpeg mpdecimate`; 381 distinct frames in 10 s. Motion is required: ScreenCaptureKit delivers on change, so a still home screen legitimately produces almost none
+- [x] A USB-connected iPhone appears within ~3s and mirrors at ≥ 20 fps over 10 s — **appeared in 0.15 s, 435 frames in 10 s = 43.5 fps** at 1284x2778, measured with `Spikes/22-coremediaio/probe.swift` widened to a 10 s window
+- [x] The source list offers the phone's **screen**, never its Continuity camera or Desk View — the machine publishes **five** capture devices (`Shayy`, `Shayy Camera`, `Shayy Desk View Camera`, `FaceTime HD Camera`, `OBS Virtual Camera`) and the picker listed only `Shayy`
+- [x] A source that does not appear shows a retrying state, not a permanent "no device" — with nothing booted or plugged in: **"No Simulator running · Boot one from Xcode, then try again"** with a Try Again button. The empty picker reads **"No Simulator or device found"** and still offers Choose Window, so the pane is never a dead end
+- [ ] Rotating the device updates the image without restarting capture — **no verdict.** The run was invalid: capture had already failed before the rotation, so the post-rotation error was [#81](https://github.com/shayyz-code/sidecar/issues/81), not a rotation failure. Must be re-run from a known-good stream
 - [ ] The image is aspect-correct at every pane width; letterboxed, never stretched or cropped
 - [ ] Denying Screen Recording shows an explaining state with a working Settings link
-- [ ] Denying Camera does the same, pointing at the **Camera** pane, not Screen Recording
-- [ ] Shutting down a mirrored Simulator shows a reconnect state, not a frozen frame
-- [ ] Unplugging a mirrored device does the same
-- [ ] `stop()` releases the stream — no capture indicator persists after switching sources
-- [ ] Switching sources ten times leaks neither memory nor capture sessions
+- [x] Denying Camera does the same, pointing at the **Camera** pane — reached by signing a hardened build *without* `com.apple.security.device.camera`, which is the only way to produce a denial without revoking a real grant
+- [x] Shutting down a mirrored Simulator shows a reconnect state, not a frozen frame — **"Simulator disconnected · The Simulator stopped or quit"** with a Reconnect button. The last frame was cleared, not left standing
+- [x] Unplugging a mirrored device does the same — a reconnect state with no frozen frame, **but it named the wrong device**: *"Simulator disconnected · The Simulator stopped or quit"*, with no Simulator booted and `Simulator.app` not running. `.disconnected` hardcoded the Simulator wording while every neighbouring state branched on `lastKind`. Fixed in [#84](https://github.com/shayyz-code/sidecar/issues/84); the corrected device string is not yet observed on screen
+  > Worth keeping as a method note. This line previously read *"the same branch with a different string — reading the branch is not watching it."* The first half was wrong: there was no different string. The second half is why the bug was found anyway.
+- [ ] `stop()` releases the stream — no capture indicator persists after switching sources. **Not measurable by screenshot**: taking one lights the indicator itself
+- [ ] **FAILS** — switching sources ten times leaks neither memory nor capture sessions. Memory is clean (rss bounded and non-monotonic across 30 switches, `leaks` flat at 64 bytes). Capture sessions are not: after ~30 switches `SimulatorSource` stops producing frames and never recovers without restarting the app. [#81](https://github.com/shayyz-code/sidecar/issues/81)
 
 ## Testing
 
@@ -89,7 +92,12 @@ Almost none of this runs in CI: capture needs TCC grants and a GUI session. Tag 
 
 What *can* be tested in CI is the pure logic around it — `MirrorSourceKind` permission mapping, source-list diffing, id stability.
 
-The leak criterion needs deliberate checking: switch sources repeatedly with Instruments attached, and confirm the macOS capture indicator disappears when it should.
+The leak criterion needs deliberate checking, and **memory instrumentation alone will pass it wrongly**. `leaks` stayed flat at 64 bytes and rss stayed bounded across 30 switches while capture was quietly dying — the handles are reachable, so nothing reports them as leaked. Check by *using* the app after N switches, not by reading a memory graph.
+
+Two measurement traps found doing this, both of which produced confident wrong answers before being caught:
+
+- **Screen-region capture records whatever is on top.** A `screencapture -R` of a window's frame silently returns the window in front of it. Capture by `CGWindowID` instead. The first frame-rate recording measured an editor sitting over the app.
+- **An `NSAlert` is a separate window.** Enumerate *all* of a process's windows before concluding a dialog did not appear; a helper that grabs "the main window" will miss it and report a silent failure that is not there.
 
 ## Out of scope
 

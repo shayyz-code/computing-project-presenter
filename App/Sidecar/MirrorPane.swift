@@ -101,10 +101,17 @@ struct MirrorPane: View {
             case .disconnected:
                 // Never a frozen last frame: the presenter would keep talking to
                 // a dead image with nothing telling them it had stopped.
+                //
+                // Branches on `lastKind` for the same reason `.noSource` does.
+                // This case used to hardcode the Simulator wording, so pulling a
+                // phone's cable said "The Simulator stopped or quit" — sending a
+                // presenter to look at a Simulator that was not even running.
                 MirrorMessage(
                     symbol: "arrow.clockwise",
-                    title: "Simulator disconnected",
-                    detail: "The Simulator stopped or quit."
+                    title: lastKind == .device ? "iPhone disconnected" : "Simulator disconnected",
+                    detail: lastKind == .device
+                        ? "The cable was unplugged, or the iPhone locked."
+                        : "The Simulator stopped or quit."
                 ) {
                     Button("Reconnect") { Task { await retry() } }
                         .buttonStyle(.glassProminent)
