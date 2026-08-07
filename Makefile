@@ -42,12 +42,18 @@ build: ## Build the app (Debug, unsigned)
 		CODE_SIGNING_ALLOWED=NO
 
 build-signed: build ## Re-sign the built app with hardened runtime and entitlements
+	@# Nested code first, and with the same identity. The hardened runtime turns
+	@# on library validation, so a Debug build whose Sidecar.debug.dylib is still
+	@# linker-signed under no team aborts at launch with "Library not loaded".
+	codesign --force --options runtime --sign $(SIGN_AS) --timestamp=none \
+		$(APP_BUNDLE)/Contents/MacOS/*.dylib
 	codesign --force --options runtime \
 		--sign $(SIGN_AS) \
 		--entitlements $(ENTITLEMENTS) \
 		--identifier $(BUNDLE_ID) \
 		--timestamp=none \
 		$(APP_BUNDLE)
+	codesign --verify --deep --strict $(APP_BUNDLE)
 	@codesign -dvvv $(APP_BUNDLE) 2>&1 | grep -E '^Identifier|^Authority|flags='
 	@codesign -d --entitlements - --xml $(APP_BUNDLE) 2>/dev/null \
 		| plutil -p - | grep '=>' || echo '  (no entitlements embedded)'
