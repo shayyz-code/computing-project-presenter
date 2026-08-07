@@ -51,4 +51,28 @@ struct DeckTests {
         #expect(deck[number: 2]?.notes == nil)
         #expect(deck[number: 3]?.notes == "demo here")
     }
+
+    @Test("hasNotes distinguishes a deck with notes from one without")
+    func hasNotes() {
+        // A PDF carries none, and a notes pane over one would be a permanently
+        // empty box. Gating on the deck rather than the current slide also stops
+        // the pane flickering while navigating a deck with sparse notes.
+        let withNotes = Deck(
+            title: "d",
+            slides: [Slide(number: 1), Slide(number: 2, notes: "something")],
+            sourceURL: URL(fileURLWithPath: "/tmp/d.pptx"))
+        #expect(withNotes.hasNotes)
+
+        let without = Deck(
+            title: "d", slides: [Slide(number: 1), Slide(number: 2)],
+            sourceURL: URL(fileURLWithPath: "/tmp/d.pdf"))
+        #expect(!without.hasNotes)
+
+        // Whitespace-only notes are normalised to nil upstream, but an empty
+        // string must not count either.
+        let empty = Deck(
+            title: "d", slides: [Slide(number: 1, notes: "")],
+            sourceURL: URL(fileURLWithPath: "/tmp/d.pdf"))
+        #expect(!empty.hasNotes)
+    }
 }

@@ -42,6 +42,11 @@ Prefetch runs off the main actor and is fire-and-forget: it must never delay a k
 
 ### Failing
 
+**A zero-page PDF cannot be constructed, so `emptyDeck` is unreachable for that format.** Two routes were tried: a `CGContext` with no `beginPDFPage` emits an *implicit* page and yields `pageCount == 1`, and a hand-written PDF whose page tree is `/Count 0` with no `/Kids` is refused outright by `PDFDocument(url:)`. So a page-less PDF arrives as `unreadableFile`. The guard stays in `PDFDeckLoader` regardless, because "pageCount == 0 draws a blank pane" is the failure this spec forbids and it should not rest on PDFKit continuing to behave this way. `emptyDeck` is genuinely reachable for `.pptx`, where an empty `<p:sldIdLst>` produces it.
+
+**Both formats go through `DeckOpener`.** Branching on the extension in the view is what let the two paths drift: `.pptx` reported `emptyDeck` and `unreadableFile` properly while `.pdf` skipped the loader entirely, so a corrupt PDF surfaced a raw rendering error and a page-less one drew a blank pane with no explanation.
+
+
 Every failure names a remedy. No deck loader available for a `.pptx` offers three: install LibreOffice, use Keynote, or export to PDF. A corrupt file says so rather than showing an empty deck.
 
 ## Acceptance criteria
@@ -52,7 +57,7 @@ Every failure names a remedy. No deck loader available for a `.pptx` offers thre
 - [ ] A `.pptx` that embeds fonts under `ppt/fonts/*.fntdata` prefers LibreOffice when available; Keynote substitutes and text reflows out of its shape
 - [ ] A `.pptx` whose `<p:sldIdLst>` order differs from filename order renders in author order
 - [ ] Given a fixture with notes on slides 1, 3, 4 and none on 2, 5 — notes land on 1, 3, 4, and slides 2 and 5 report none
-- [ ] A deck with zero slides is reported as `DeckLoadingError.emptyDeck`, not rendered as blank
+- [ ] A deck with zero slides is reported as `DeckLoadingError.emptyDeck`, not rendered as blank — reachable for `.pptx`; see the note below for `.pdf`
 - [ ] A corrupt file produces `unreadableFile`, not a crash
 - [ ] With no converter available, the error names all three remedies
 - [ ] Reopening an unchanged deck skips conversion; editing it reconverts

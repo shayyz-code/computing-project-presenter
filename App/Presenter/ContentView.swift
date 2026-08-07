@@ -65,7 +65,7 @@ struct ContentView: View {
                         .padding([.horizontal, .top], 12)
                     }
                     // The deck keeps the space; notes take a modest strip below.
-                    if presentation.mode.showsNotes, deck != nil {
+                    if presentation.mode.showsNotes, deck?.hasNotes == true {
                         NotesPane(deck: deck, slideNumber: navigator.position, timer: timer)
                             .frame(height: 150)
                     }
@@ -212,23 +212,30 @@ struct ContentView: View {
     private func open(_ url: URL, restoringPosition position: Int?) {
         missingDeckPath = nil
 
-        if url.pathExtension.lowercased() == "pdf" {
-            show(pdf: url, deck: nil, source: url, position: position)
-            return
+        // One path for both formats. Branching on the extension here is what let
+        // the two drift: .pptx went through a loader and reported emptyDeck and
+        // unreadableFile properly, while .pdf skipped it entirely — so a corrupt
+        // PDF surfaced a raw rendering error and a page-less one drew a blank
+        // pane with no explanation.
+        //
+        // Progress is only shown for formats that convert. A .pdf opens
+        // immediately, and flashing a converting pane at it would be a lie.
+        let needsConversion = url.pathExtension.lowercased() != "pdf"
+        if needsConversion {
+            // Genuinely slow the first time — LibreOffice spent 321s building
+            // its user profile on a cold machine (spike #16) — so this must
+            // never look like a hang.
+            status = .converting(url.lastPathComponent)
         }
 
-        // Conversion is genuinely slow the first time — LibreOffice spent 321s
-        // building its user profile on a cold machine (spike #16) — so this must
-        // never look like a hang.
-        status = .converting(url.lastPathComponent)
         Task {
             do {
-                let loader = PPTXDeckLoader()
-                let deck = try await loader.load(url)
-                let pdf = try await loader.convertedPDF(for: url)
+                let opened = try await DeckOpener().open(url)
                 await MainActor.run {
                     status = .idle
-                    show(pdf: pdf, deck: deck, source: url, position: position)
+                    show(
+                        pdf: opened.renderableURL, deck: opened.deck, source: url,
+                        position: position)
                 }
             } catch {
                 await MainActor.run {
@@ -285,6 +292,10 @@ struct ContentView: View {
             alert.informativeText = "That file could not be read as a presentation."
         case DeckLoadingError.conversionFailed(_, let reason):
             alert.informativeText = "Conversion failed.\n\n\(reason)"
+        case is SlideRenderingError:
+            // Reaching here means a file opened as a deck but could not be
+            // drawn. Naming it beats printing a Swift enum description.
+            alert.informativeText = "That deck opened but could not be rendered."
         default:
             alert.informativeText = "\(error)"
         }
