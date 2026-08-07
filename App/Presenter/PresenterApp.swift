@@ -52,6 +52,23 @@ struct PresenterApp: App {
             // are no text fields today — notes are read-only — and space-advances
             // is the universal presenter convention, so this is the right trade.
             // Whoever adds a text field will need to revisit it.
+            CommandGroup(after: .sidebar) {
+                Button("Swap Sides") {
+                    NotificationCenter.default.post(name: .swapSidesRequested, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
+
+                Button("Collapse Mirror") {
+                    NotificationCenter.default.post(name: .collapseMirrorRequested, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .control])
+
+                Button("Collapse Slides") {
+                    NotificationCenter.default.post(name: .collapseDeckRequested, object: nil)
+                }
+                .keyboardShortcut("d", modifiers: [.command, .control])
+            }
+
             CommandMenu("Navigate") {
                 Button(NavigationCommand.next.title) { post(.next) }
                     .keyboardShortcut(.rightArrow, modifiers: [])

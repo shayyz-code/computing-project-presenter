@@ -11,6 +11,10 @@ struct MirrorPane: View {
     /// A source id remembered from the last session, pre-selected but never
     /// auto-connected — connecting would unhide a Simulator uninvited.
     let rememberedSourceID: String?
+    /// Collapsed panes stop capturing. A hidden mirror that keeps streaming
+    /// leaves the macOS capture indicator lit, which reads as the app still
+    /// watching your screen.
+    let collapsed: Bool
     let onSourceChanged: (String?) -> Void
 
     @State private var source: (any MirrorSource)?
@@ -109,6 +113,13 @@ struct MirrorPane: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { discovery.startMonitoring() }
+        .onChange(of: collapsed) { _, isCollapsed in
+            guard isCollapsed else { return }
+            Task {
+                await disconnect()
+                state = .idle
+            }
+        }
         // Deliberately no `.onDisappear` teardown. SwiftUI fires it for
         // transient reasons — a modal appearing was enough — and tearing the
         // stream down there stopped the mirror without telling anyone.

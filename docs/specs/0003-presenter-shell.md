@@ -39,6 +39,16 @@ The stored value is a plain path, which only works because App Sandbox is delibe
 
 Restoring a `.pptx` is normally instant because conversions are content-hash cached, but a cleared cache means a full reconversion on launch — up to the 321 s cold-LibreOffice case. The converting state covers it and ⌘O still works meanwhile.
 
+## Layout
+
+The divider is draggable and the ratio survives relaunch. `HSplitView` could not do this — it exposes no way to read or set its position — so the split is a `GeometryReader` over `LayoutState`, where the rules are testable.
+
+The deck never drops below half the window and the mirror is never squeezed below a readable width: a presenter app whose deck is the smaller pane has its priorities inverted, and past the cap the mirror is a sliver rather than a phone. Collapsing is the honest way to hide either.
+
+**Collapsing the mirror stops capture.** A hidden mirror that keeps streaming leaves the macOS capture indicator lit, which reads as the app still watching your screen.
+
+Swapping moves *content*, not labels, and a collapsed pane stays collapsed across a swap rather than reappearing on the far side.
+
 ## Keyboard navigation
 
 Every navigation action has a menu item, and that is not only for discoverability: **menu key equivalents are dispatched by the menu system rather than the focus chain**, so they keep working wherever the last click landed. A view's `keyDown` fires only while that view is first responder, which made navigation stop silently after clicking in the mirror pane.
@@ -83,6 +93,16 @@ Degradation is the design, because a stale session is the *normal* case for a ma
 The stored value is a plain path, which only works because App Sandbox is deliberately off (ADR-0005). **If the app is ever sandboxed for the Mac App Store a stored path stops resolving and needs a security-scoped bookmark** — the sort of thing that breaks silently at the worst moment.
 
 Restoring a `.pptx` is normally instant because conversions are content-hash cached, but a cleared cache means a full reconversion on launch — up to the 321 s cold-LibreOffice case. The converting state covers it and ⌘O still works meanwhile.
+
+## Layout
+
+The divider is draggable and the ratio survives relaunch. `HSplitView` could not do this — it exposes no way to read or set its position — so the split is a `GeometryReader` over `LayoutState`, where the rules are testable.
+
+The deck never drops below half the window and the mirror is never squeezed below a readable width: a presenter app whose deck is the smaller pane has its priorities inverted, and past the cap the mirror is a sliver rather than a phone. Collapsing is the honest way to hide either.
+
+**Collapsing the mirror stops capture.** A hidden mirror that keeps streaming leaves the macOS capture indicator lit, which reads as the app still watching your screen.
+
+Swapping moves *content*, not labels, and a collapsed pane stays collapsed across a swap rather than reappearing on the far side.
 
 ## Keyboard navigation
 
