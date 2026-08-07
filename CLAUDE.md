@@ -63,6 +63,10 @@ docs/{adr,specs}/
 
 **When Apple Events times out, look at what the app is showing.** Keynote reports nothing to the script while a modal is up. Read the dialog out of the accessibility tree — `System Events` → `every window whose subrole is "AXDialog"` → its `static text` — before concluding the operation is unsupported.
 
+**`onTapGesture` is not a button.** A thumbnail wired with `.onTapGesture` did nothing when clicked — no focus ring, no VoiceOver activation, and it ignored synthetic clicks that a real `Button` accepts. Anything meant to be activated is a `Button` with `.buttonStyle(.plain)`, which keeps the appearance and gains all three.
+
+**Two consumers at different sizes need two `CachingSlideRenderer` instances.** The cache purges when the requested geometry changes, because a display change makes every entry the wrong size. A thumbnail strip sharing the pane's renderer would therefore purge the full-size pages on every thumbnail draw and vice versa, thrashing both. Two instances over one `PDFSlideRenderer` each keep their own geometry and budget; that renderer holds a lock, so concurrent use is safe.
+
 **A view's `keyDown` is not where presenter navigation belongs.** `SlidePane` had `acceptsFirstResponder = true` and handled arrows, space and page up/down — but nothing ever *made* it first responder, so navigation silently stopped after a click anywhere else (the mirror pane's buttons especially), with no focus ring in fullscreen to explain why. Navigation now lives in the Navigate menu plus a local `NSEvent` monitor, both dispatched ahead of the focus chain, and both routed through one `NavigationCommand` so they cannot drift.
 
 **macOS restores a window straight back into fullscreen.** Relaunching an app that was quit while fullscreen re-enters fullscreen without the user asking, and `didEnterFullScreenNotification` fires for it. That is a fifth route in alongside the menu item, ⌃⌘F, the green button and the Window menu — which is the argument for reading fullscreen state from the window rather than from a flag the app sets itself.
