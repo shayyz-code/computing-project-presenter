@@ -2,7 +2,7 @@
 
 Answers: *does an unentitled app still see a USB iPhone as an `AVCaptureDevice` on macOS 27?*
 
-**Yes.** Full result and its consequences are in [ADR-0003](../../docs/adr/0003-mirroring-strategy.md); the working through is on [issue #22](https://github.com/shayyz-code/computing-project-presenter/issues/22).
+**Yes.** Full result and its consequences are in [ADR-0003](../../docs/adr/0003-mirroring-strategy.md); the working through is on [issue #22](https://github.com/shayyz-code/sidecar/issues/22).
 
 Spike code is not expected to survive, per `docs/CONTRIBUTING.md`. This one is kept because the ADR cites measurements that cannot otherwise be re-derived, and because the probe encodes three mistakes worth not repeating.
 

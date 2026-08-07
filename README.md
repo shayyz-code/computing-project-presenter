@@ -15,8 +15,8 @@ Presenting coursework or a final-year project usually means switching between sl
 **Requires macOS 26 or later**, and Xcode 26 to build. The floor is macOS 26 because the interface uses Liquid Glass, whose APIs start there — see [ADR-0006](docs/adr/0006-design-language.md). On macOS 15 the app will not launch.
 
 ```bash
-git clone https://github.com/shayyz-code/computing-project-presenter.git
-cd computing-project-presenter
+git clone https://github.com/shayyz-code/sidecar.git
+cd sidecar
 make bootstrap
 make run
 ```

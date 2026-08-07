@@ -1,6 +1,6 @@
 # ADR-0002: PDF-first deck rendering, with a converter chain for .pptx
 
-**Status:** Accepted · 2026-08-06 — Keynote backend verified against real decks by spike [#16](https://github.com/shayyz-code/computing-project-presenter/issues/16). See *What the spike measured*.
+**Status:** Accepted · 2026-08-06 — Keynote backend verified against real decks by spike [#16](https://github.com/shayyz-code/sidecar/issues/16). See *What the spike measured*.
 
 ## Context
 
