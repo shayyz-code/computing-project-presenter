@@ -241,6 +241,10 @@ final class LayerHostView: NSView {
 
     private let chassis = CALayer()
 
+    /// Siblings of `chassis`, not children: it sets `masksToBounds`, and a
+    /// button that stands proud of the body would be clipped away by it.
+    private let buttons: [CALayer] = DeviceChassis.sideButtons.map { _ in CALayer() }
+
     var mirrored: CALayer? {
         didSet {
             guard mirrored !== oldValue else { return }
@@ -260,8 +264,17 @@ final class LayerHostView: NSView {
         layer?.backgroundColor = NSColor.clear.cgColor
         chassis.backgroundColor = NSColor.black.cgColor
         chassis.masksToBounds = true
+        chassis.borderColor = Self.bodyColour
         layer?.addSublayer(chassis)
+        for button in buttons {
+            button.backgroundColor = Self.bodyColour
+            layer?.addSublayer(button)
+        }
     }
+
+    /// The grey of the Simulator's own chassis rim, sampled from a screenshot
+    /// rather than picked — it reads as anodised metal against the black bezel.
+    private static let bodyColour = NSColor(white: 0.17, alpha: 1).cgColor
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
@@ -277,9 +290,13 @@ final class LayerHostView: NSView {
 
         guard drawsChassis else {
             // Simulator: the captured window is the device, bezel included.
+            // Hide the buttons too, or a Simulator grows a second set beside the
+            // ones already in its own window.
             chassis.frame = bounds
             chassis.cornerRadius = 0
+            chassis.borderWidth = 0
             chassis.backgroundColor = NSColor.clear.cgColor
+            buttons.forEach { $0.isHidden = true }
             mirrored.frame = chassis.bounds
             mirrored.cornerRadius = 0
             return
@@ -289,6 +306,15 @@ final class LayerHostView: NSView {
         chassis.backgroundColor = NSColor.black.cgColor
         chassis.frame = body
         chassis.cornerRadius = DeviceChassis.cornerRadius(forChassis: body)
+        // Drawn inward from the body edge, so it eats into the bezel rather than
+        // widening it — the measured 31pt inset already includes this rim.
+        chassis.borderWidth = DeviceChassis.rimWidth(forChassis: body)
+
+        for (button, rect) in zip(buttons, DeviceChassis.buttonRects(forChassis: body)) {
+            button.isHidden = false
+            button.frame = rect
+            button.cornerRadius = min(rect.width, rect.height) / 2
+        }
 
         // screenRect is in the view's space; the mirrored layer is a child of
         // the chassis, so it is offset into the chassis's own coordinates.
